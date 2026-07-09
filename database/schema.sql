@@ -14,12 +14,16 @@
 -- `flag` is the company's current status ('risk' | 'on_track' | 'follow_on'),
 -- derived from its latest faded score and kept up to date by the daily fade
 -- job (see fade_score.py). NULL until the fade job has run at least once.
+-- `flag_reason` is a plain-English sentence explaining that flag (see
+-- flag_reason.py) — refreshed every run, even on days the flag itself
+-- doesn't change.
 CREATE TABLE companies (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     name         TEXT NOT NULL,
     industry     TEXT,
     founded_year INTEGER,
     flag         TEXT,
+    flag_reason  TEXT,
     created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -67,6 +71,7 @@ CREATE TABLE score_history (
     flag        TEXT NOT NULL,
     source      TEXT NOT NULL DEFAULT 'report',  -- 'report' | 'fade'
     as_of_date  TEXT NOT NULL,                   -- YYYY-MM-DD this score reflects
+    reason      TEXT,                            -- plain-English explanation ('fade' rows only)
     computed_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(company_id, as_of_date, source)
 );
@@ -81,6 +86,7 @@ CREATE TABLE flag_history (
     company_id  INTEGER NOT NULL REFERENCES companies(id),
     old_flag    TEXT,
     new_flag    TEXT NOT NULL,
-    as_of_date  TEXT NOT NULL,     -- YYYY-MM-DD the change was detected on
+    reason      TEXT,               -- plain-English explanation as of the change
+    as_of_date  TEXT NOT NULL,       -- YYYY-MM-DD the change was detected on
     changed_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );

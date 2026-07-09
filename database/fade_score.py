@@ -6,8 +6,9 @@ For every company it looks at the real score in `scores` (computed from
 their most recent monthly_metrics report) and how long it's been since that
 report, applies the fade schedule, and writes today's faded score/flag to
 `score_history` as a 'fade' row. It then labels the company from that faded
-score ('risk' / 'on_track' / 'follow_on'), stores the label on the company
-record, and logs a `flag_history` row whenever that label actually changes.
+score ('risk' / 'on_track' / 'follow_on'), stores the label and a plain-
+English reason on the company record, and logs a `flag_history` row
+whenever that label actually changes.
 
 The real `scores` row is never touched, and the fade is recomputed from
 scratch every run (base score + days-since-report), so:
@@ -25,6 +26,8 @@ Run: python3 database/fade_score.py
 import os
 import sqlite3
 from datetime import date, datetime
+
+from flag_reason import generate_flag_reason
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "mip.db")
 
@@ -79,27 +82,41 @@ def run_fade_job(conn, as_of_date=None):
     as_of_date = as_of_date or date.today()
 
     rows = conn.execute(
-        """SELECT s.company_id, s.metric_id, s.score, mm.report_date
+        """SELECT s.company_id, s.metric_id, s.score, mm.report_date,
+                  mm.revenue, mm.burn_rate, mm.runway_months, mm.growth_rate
            FROM scores s
            JOIN monthly_metrics mm ON mm.id = s.metric_id"""
     ).fetchall()
 
     results = []
-    for company_id, metric_id, base_score, report_date_str in rows:
+    for (company_id, metric_id, base_score, report_date_str,
+         revenue, burn_rate, runway_months, growth_rate) in rows:
         report_date = datetime.strptime(report_date_str, "%Y-%m-%d").date()
+        days_since_report = (as_of_date - report_date).days
         faded_score = calculate_faded_score(base_score, report_date, as_of_date)
         faded_flag = flag_from_faded_score(faded_score)
 
+        # If fading alone knocked the flag into a worse bucket than the real
+        # metrics would justify on their own, staleness is the actual cause.
+        base_flag = flag_from_faded_score(base_score)
+        is_stale = base_flag != faded_flag
+
+        reason = generate_flag_reason(
+            faded_flag, is_stale, days_since_report,
+            revenue, burn_rate, runway_months, growth_rate,
+        )
+
         conn.execute(
             """INSERT INTO score_history
-               (company_id, metric_id, score, flag, source, as_of_date)
-               VALUES (?, ?, ?, ?, 'fade', ?)
+               (company_id, metric_id, score, flag, source, as_of_date, reason)
+               VALUES (?, ?, ?, ?, 'fade', ?, ?)
                ON CONFLICT(company_id, as_of_date, source)
                DO UPDATE SET score = excluded.score,
                              flag = excluded.flag,
                              metric_id = excluded.metric_id,
+                             reason = excluded.reason,
                              computed_at = datetime('now')""",
-            (company_id, metric_id, faded_score, faded_flag, as_of_date.isoformat()),
+            (company_id, metric_id, faded_score, faded_flag, as_of_date.isoformat(), reason),
         )
 
         old_flag = conn.execute(
@@ -109,16 +126,21 @@ def run_fade_job(conn, as_of_date=None):
         flag_changed = old_flag != faded_flag
         if flag_changed:
             conn.execute(
-                """INSERT INTO flag_history (company_id, old_flag, new_flag, as_of_date)
-                   VALUES (?, ?, ?, ?)""",
-                (company_id, old_flag, faded_flag, as_of_date.isoformat()),
+                """INSERT INTO flag_history (company_id, old_flag, new_flag, reason, as_of_date)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (company_id, old_flag, faded_flag, reason, as_of_date.isoformat()),
             )
             conn.execute(
-                "UPDATE companies SET flag = ? WHERE id = ?", (faded_flag, company_id)
+                "UPDATE companies SET flag = ?, flag_reason = ? WHERE id = ?",
+                (faded_flag, reason, company_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE companies SET flag_reason = ? WHERE id = ?", (reason, company_id)
             )
 
         results.append(
-            (company_id, base_score, faded_score, faded_flag, report_date, flag_changed)
+            (company_id, base_score, faded_score, faded_flag, report_date, flag_changed, reason)
         )
 
     conn.commit()
@@ -127,7 +149,7 @@ def run_fade_job(conn, as_of_date=None):
 
 def print_results(conn, results, as_of_date):
     print(f"Fade job run for {as_of_date.isoformat()}\n")
-    for company_id, base_score, faded_score, faded_flag, report_date, flag_changed in results:
+    for company_id, base_score, faded_score, faded_flag, report_date, flag_changed, reason in results:
         name = conn.execute(
             "SELECT name FROM companies WHERE id = ?", (company_id,)
         ).fetchone()[0]
@@ -137,6 +159,7 @@ def print_results(conn, results, as_of_date):
             f"  {name:<20} last report {report_date}  ({days_since:>3}d ago)  "
             f"base={base_score:5.1f}  faded={faded_score:5.1f}  flag={faded_flag}{change_note}"
         )
+        print(f"      {reason}")
 
 
 if __name__ == "__main__":

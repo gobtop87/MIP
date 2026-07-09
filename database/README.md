@@ -60,6 +60,26 @@ on `scores`/`monthly_metrics`-derived `score_history` rows (`'report'`
 source) still uses `health_score.py`'s own bucket labels — that's a
 separate, earlier piece of the pipeline and out of scope here.
 
+## Flag reasons
+
+`flag_reason.py` generates one plain sentence explaining each company's
+flag, e.g. `"Flagged as risk: revenue growth fell 147% below target, the
+largest gap of any metric."` It compares runway, revenue growth, and burn
+rate against the healthy benchmarks baked into `calculate_health_score`
+(12 months runway, 15% MoM growth, burn ≤ revenue) and names whichever is
+furthest off (or, for an on-track/follow-on company, closest to concerning
+/ the strongest performer).
+
+If fading — not the underlying metrics — is what produced the flag (i.e.
+the un-faded score would land in a better bucket than the faded one does),
+the sentence says so instead of blaming a metric, e.g. `"On track: no
+numbers reported in 38 days, so the score has faded."`
+
+The reason is stored alongside the flag everywhere the flag itself is
+stored: `companies.flag_reason` (refreshed every run, even when the flag
+doesn't change), `score_history.reason` (on each day's `'fade'` row), and
+`flag_history.reason` (the explanation as of that status change).
+
 Run it once a day:
 
 ```
