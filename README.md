@@ -1,3 +1,26 @@
+# MIP
+
+## Dashboard (UI)
+
+`dashboard/index.html` is the project's UI — a self-contained portfolio
+dashboard (company list, risk/follow-on/on-track flags, trend charts).
+`app.py` is a minimal Flask server that serves it, and is the intended home
+for future routes/pages and any real-data API endpoints.
+
+```bash
+python3 -m venv venv
+./venv/bin/pip install -r requirements.txt
+./venv/bin/python app.py
+```
+
+Then open http://127.0.0.1:5000 in a browser.
+
+Note: the dashboard currently renders from a hardcoded mock company array
+in its own `<script>` block, not from this repo's data. Wiring it to real
+data (SQLite `news_watch/news.db`, `database/`, `alerts/`, etc.) means
+adding API routes to `app.py` and replacing that mock array with a `fetch()`
+call — not done yet.
+
 # MIP — News Watcher (Assignment 4)
 
 Pulls news about portfolio companies and their competitors from NewsAPI, SEC
