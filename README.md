@@ -85,6 +85,27 @@ company's keyword list). That's expected — Assignment 4's job is just to
 get candidate items into the database; deciding what's *actually* relevant
 to a specific company is Assignment 5's job.
 
+## Website / dashboard
+
+A small local dashboard shows the mock companies and their matched news
+side by side, with click-to-filter by company.
+
+```bash
+./venv/bin/python -m news_watch.seed_demo_data   # optional: populate with demo data
+./venv/bin/python -m news_watch.webapp
+```
+
+Then open http://localhost:5000. It reads straight from `news_watch/news.db`,
+so it updates automatically after you run `fetch_news.py` — no separate
+sync step.
+
+`seed_demo_data.py` is demo-only: this sandbox's network policy blocks the
+live RSS/SEC/NewsAPI hosts, so it inserts a batch of realistic but synthetic
+news items (real competitor names, made-up article URLs) purely so the
+dashboard isn't empty. It's safe to run alongside real fetched data, or skip
+it entirely once `fetch_news.py` is pulling live items somewhere with normal
+internet access.
+
 ## Scheduling
 
 The deliverable doesn't require automation, but to run it daily:

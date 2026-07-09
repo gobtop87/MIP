@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MIP News Watcher</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --surface: #ffffff;
+    --border: #e3e3e6;
+    --text: #1a1a1e;
+    --text-dim: #6b6b74;
+    --accent: #5b5bd6;
+    --risk: #d64550;
+    --ok: #2f9e5c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131316;
+      --surface: #1b1b1f;
+      --border: #2c2c32;
+      --text: #ececef;
+      --text-dim: #9a9aa4;
+      --accent: #8a8aff;
+      --risk: #ff6b74;
+      --ok: #4ade80;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 24px 32px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0 0 4px;
+    font-size: 1.4rem;
+  }
+  header p {
+    margin: 0 0 16px;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  .container {
+    padding: 24px 32px 48px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .stat-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge.ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+  .badge.warn { background: color-mix(in srgb, var(--risk) 18%, transparent); color: var(--risk); }
+
+  .company-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .company-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.15s;
+  }
+  .company-card:hover { border-color: var(--accent); }
+  .company-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .company-card .name { font-weight: 600; margin-bottom: 2px; }
+  .company-card .sector { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 8px; }
+  .company-card .count { font-size: 1.3rem; font-weight: 700; }
+  .company-card .count-label { font-size: 0.72rem; color: var(--text-dim); }
+
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+  }
+  .filter-bar a { color: var(--accent); text-decoration: none; }
+  .filter-bar a:hover { text-decoration: underline; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  thead th {
+    text-align: left;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-dim);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.87rem;
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  td a { color: var(--text); text-decoration: none; }
+  td a:hover { color: var(--accent); text-decoration: underline; }
+  .tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 1px 7px;
+    border-radius: 5px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .tag.competitor { color: var(--risk); border-color: color-mix(in srgb, var(--risk) 40%, var(--border)); }
+  .empty { padding: 40px; text-align: center; color: var(--text-dim); }
+</style>
+</head>
+<body>
+<header>
+  <h1>MIP News Watcher</h1>
+  <p>Assignment 4 &mdash; mock portfolio companies, live-matched news &amp; filings.</p>
+</header>
+<div class="container">
+
+  <div class="stat-row">
+    <span class="badge {{ 'ok' if 30 <= total_today <= 80 else 'warn' }}">
+      {{ total_today }} items today (target 30&ndash;80)
+    </span>
+  </div>
+
+  <div class="company-grid">
+    <a href="/" class="company-card {{ 'selected' if not selected }}">
+      <div class="name">All companies</div>
+      <div class="sector">&nbsp;</div>
+      <div class="count">{{ summary.values() | sum(attribute='total') if summary else 0 }}</div>
+      <div class="count-label">total items</div>
+    </a>
+    {% for c in companies %}
+    <a href="/?company={{ c.id }}" class="company-card {{ 'selected' if selected == c.id }}">
+      <div class="name">{{ c.name }}</div>
+      <div class="sector">{{ c.sector }}</div>
+      <div class="count">{{ summary.get(c.id, {}).get('total', 0) }}</div>
+      <div class="count-label">{{ summary.get(c.id, {}).get('competitor_mentions', 0) }} competitor mentions</div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <div class="filter-bar">
+    <span>{{ items|length }} item{{ 's' if items|length != 1 else '' }} shown</span>
+    {% if selected %}<a href="/">clear filter</a>{% endif %}
+  </div>
+
+  {% if items %}
+  <table>
+    <thead>
+      <tr>
+        <th>Company</th>
+        <th>Headline</th>
+        <th>Source</th>
+        <th>Matched on</th>
+        <th>Published</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>{{ item.company_name }}</td>
+        <td><a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.headline }}</a></td>
+        <td>{{ item.source_name or item.source }}</td>
+        <td>
+          <span class="tag {{ 'competitor' if item.is_competitor_mention else '' }}">
+            {{ item.matched_term }}
+          </span>
+        </td>
+        <td>{{ item.published_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">No news items yet. Run <code>python -m news_watch.fetch_news</code> to pull some.</div>
+  {% endif %}
+
+</div>
+</body>
+</html>
