@@ -8,7 +8,7 @@ import requests
 NEWSAPI_URL = "https://newsapi.org/v2/everything"
 
 
-def fetch_newsapi_articles(query, page_size=10):
+def fetch_newsapi_articles(query, page_size=5):
     api_key = os.environ.get("NEWSAPI_KEY")
     if not api_key:
         return []

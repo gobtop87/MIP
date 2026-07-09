@@ -6,13 +6,14 @@ matches. Swap in real portfolio company names + real competitors once this
 is wired to the shared Supabase database from Assignment 1.
 """
 
-# Keywords worth watching for any company, regardless of sector.
+# Keywords worth watching for any company, regardless of sector. Trimmed to
+# the highest-signal terms — a broad general-keyword list matches the same
+# article against all 6 companies at once and inflates daily volume well
+# past the 30-80/day target (redundant/lower-signal terms removed: "raises",
+# "series a/b/c" overlap with "funding round"; "earnings" and "partnership"
+# are too common to be useful signal on their own).
 GENERAL_KEYWORDS = [
     "funding round",
-    "raises",
-    "series a",
-    "series b",
-    "series c",
     "acquisition",
     "acquires",
     "acquired by",
@@ -20,9 +21,6 @@ GENERAL_KEYWORDS = [
     "layoffs",
     "lawsuit",
     "ipo",
-    "earnings",
-    "partnership",
-    "shuts down",
     "bankruptcy",
 ]
 
