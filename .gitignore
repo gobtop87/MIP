@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+database/mip.db
 .env
 news_watch/news.db
 venv/
