@@ -38,6 +38,28 @@ for replacement once a real one is written:
 - −5 points per full week after that
 - floor of 0
 
+## Flagging
+
+After computing each day's faded score, the job labels the company via
+`flag_from_faded_score()` in `fade_score.py`:
+- faded score below 35 -> `risk`
+- faded score above 75 -> `follow_on`
+- everything else -> `on_track`
+
+The label is stored on the company record itself (`companies.flag`), and
+only when it actually changes does a row get appended to `flag_history`
+(`old_flag`, `new_flag`, `as_of_date`) — that table is the audit trail for
+"when did this company's status change", separate from `score_history`'s
+one-row-per-day log of every score. Comparing against the flag already
+saved on the company means reruns on the same day don't log a duplicate
+change.
+
+This flag vocabulary (`risk` / `on_track` / `follow_on`) is specific to the
+daily fade job's company-level status. The unrelated `flag` already stored
+on `scores`/`monthly_metrics`-derived `score_history` rows (`'report'`
+source) still uses `health_score.py`'s own bucket labels — that's a
+separate, earlier piece of the pipeline and out of scope here.
+
 Run it once a day:
 
 ```

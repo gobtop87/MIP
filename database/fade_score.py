@@ -5,13 +5,17 @@ Meant to run once a day (see scheduling note at the bottom of this file).
 For every company it looks at the real score in `scores` (computed from
 their most recent monthly_metrics report) and how long it's been since that
 report, applies the fade schedule, and writes today's faded score/flag to
-`score_history` as a 'fade' row.
+`score_history` as a 'fade' row. It then labels the company from that faded
+score ('risk' / 'on_track' / 'follow_on'), stores the label on the company
+record, and logs a `flag_history` row whenever that label actually changes.
 
 The real `scores` row is never touched, and the fade is recomputed from
 scratch every run (base score + days-since-report), so:
   - running this twice on the same day is a no-op (same inputs -> same
     output -> the UNIQUE(company_id, as_of_date, source) constraint just
-    replaces the row instead of double-penalizing)
+    replaces the row instead of double-penalizing, and the flag compare is
+    against the flag already stored from the first run, so no duplicate
+    "change" gets logged either)
   - a company that files a fresh report immediately fades back to its full
     score, because fade is never written back onto the base score.
 
@@ -22,9 +26,15 @@ import os
 import sqlite3
 from datetime import date, datetime
 
-from health_score import flag_from_score
-
 DB_PATH = os.path.join(os.path.dirname(__file__), "mip.db")
+
+# Thresholds for labeling a company from its faded score. Given directly
+# (not a placeholder), so no PROVISIONAL marker needed.
+FLAG_THRESHOLDS = {
+    "risk_below": 35,       # faded score < 35      -> 'risk'
+    "follow_on_above": 75,  # faded score > 75      -> 'follow_on'
+    # anything in between                            -> 'on_track'
+}
 
 # =============================================================================
 # PROVISIONAL — replace with the real fade schedule from the instructions doc
@@ -55,6 +65,16 @@ def calculate_faded_score(base_score, report_date, as_of_date, schedule=PROVISIO
     return max(base_score - penalty, schedule["min_score"])
 
 
+def flag_from_faded_score(faded_score, thresholds=FLAG_THRESHOLDS):
+    """Label a company from its faded score: 'risk' | 'on_track' | 'follow_on'."""
+    if faded_score < thresholds["risk_below"]:
+        return "risk"
+    elif faded_score > thresholds["follow_on_above"]:
+        return "follow_on"
+    else:
+        return "on_track"
+
+
 def run_fade_job(conn, as_of_date=None):
     as_of_date = as_of_date or date.today()
 
@@ -68,7 +88,7 @@ def run_fade_job(conn, as_of_date=None):
     for company_id, metric_id, base_score, report_date_str in rows:
         report_date = datetime.strptime(report_date_str, "%Y-%m-%d").date()
         faded_score = calculate_faded_score(base_score, report_date, as_of_date)
-        faded_flag = flag_from_score(faded_score)
+        faded_flag = flag_from_faded_score(faded_score)
 
         conn.execute(
             """INSERT INTO score_history
@@ -81,7 +101,25 @@ def run_fade_job(conn, as_of_date=None):
                              computed_at = datetime('now')""",
             (company_id, metric_id, faded_score, faded_flag, as_of_date.isoformat()),
         )
-        results.append((company_id, base_score, faded_score, faded_flag, report_date))
+
+        old_flag = conn.execute(
+            "SELECT flag FROM companies WHERE id = ?", (company_id,)
+        ).fetchone()[0]
+
+        flag_changed = old_flag != faded_flag
+        if flag_changed:
+            conn.execute(
+                """INSERT INTO flag_history (company_id, old_flag, new_flag, as_of_date)
+                   VALUES (?, ?, ?, ?)""",
+                (company_id, old_flag, faded_flag, as_of_date.isoformat()),
+            )
+            conn.execute(
+                "UPDATE companies SET flag = ? WHERE id = ?", (faded_flag, company_id)
+            )
+
+        results.append(
+            (company_id, base_score, faded_score, faded_flag, report_date, flag_changed)
+        )
 
     conn.commit()
     return results
@@ -89,14 +127,15 @@ def run_fade_job(conn, as_of_date=None):
 
 def print_results(conn, results, as_of_date):
     print(f"Fade job run for {as_of_date.isoformat()}\n")
-    for company_id, base_score, faded_score, faded_flag, report_date in results:
+    for company_id, base_score, faded_score, faded_flag, report_date, flag_changed in results:
         name = conn.execute(
             "SELECT name FROM companies WHERE id = ?", (company_id,)
         ).fetchone()[0]
         days_since = (as_of_date - report_date).days
+        change_note = "  <- status changed" if flag_changed else ""
         print(
             f"  {name:<20} last report {report_date}  ({days_since:>3}d ago)  "
-            f"base={base_score:5.1f}  faded={faded_score:5.1f}  flag={faded_flag}"
+            f"base={base_score:5.1f}  faded={faded_score:5.1f}  flag={faded_flag}{change_note}"
         )
 
 

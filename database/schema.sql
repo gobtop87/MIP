@@ -11,11 +11,15 @@
 -- =============================================================================
 
 -- One row per portfolio company.
+-- `flag` is the company's current status ('risk' | 'on_track' | 'follow_on'),
+-- derived from its latest faded score and kept up to date by the daily fade
+-- job (see fade_score.py). NULL until the fade job has run at least once.
 CREATE TABLE companies (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     name         TEXT NOT NULL,
     industry     TEXT,
     founded_year INTEGER,
+    flag         TEXT,
     created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -65,4 +69,18 @@ CREATE TABLE score_history (
     as_of_date  TEXT NOT NULL,                   -- YYYY-MM-DD this score reflects
     computed_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(company_id, as_of_date, source)
+);
+
+-- Append-only log of company status changes ('risk' | 'on_track' |
+-- 'follow_on'). Unlike score_history (one row per day, every day), this only
+-- gets a new row when the flag actually changes, so it directly answers
+-- "when did this company's status change and to what". old_flag is NULL for
+-- a company's first-ever flag assignment.
+CREATE TABLE flag_history (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id  INTEGER NOT NULL REFERENCES companies(id),
+    old_flag    TEXT,
+    new_flag    TEXT NOT NULL,
+    as_of_date  TEXT NOT NULL,     -- YYYY-MM-DD the change was detected on
+    changed_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
