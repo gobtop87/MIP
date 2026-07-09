@@ -102,9 +102,10 @@ def build_database():
             flag = flag_from_score(score)
 
             conn.execute(
-                """INSERT INTO score_history (company_id, metric_id, score, flag)
-                   VALUES (?, ?, ?, ?)""",
-                (company_id, metric_id, score, flag),
+                """INSERT INTO score_history
+                   (company_id, metric_id, score, flag, source, as_of_date)
+                   VALUES (?, ?, ?, ?, 'report', ?)""",
+                (company_id, metric_id, score, flag, report_date),
             )
 
             latest_metric_id, latest_score, latest_flag = metric_id, score, flag

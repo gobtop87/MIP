@@ -46,11 +46,23 @@ CREATE TABLE scores (
 -- Append-only history of every score ever computed. Comparing consecutive
 -- rows per company is how the future "fading" job will detect a declining
 -- trend rather than just looking at a single snapshot.
+--
+-- source: 'report' = score computed straight from a new monthly_metrics row;
+--         'fade'    = score computed by the daily fade job for a day with no
+--                      new report. as_of_date is the calendar date the row's
+--                      score is valid for (the report_date for 'report' rows,
+--                      the day the fade job ran for 'fade' rows). The unique
+--                      constraint means re-running the fade job on the same
+--                      day overwrites that day's row instead of stacking a
+--                      second penalty on top.
 CREATE TABLE score_history (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id  INTEGER NOT NULL REFERENCES companies(id),
     metric_id   INTEGER NOT NULL REFERENCES monthly_metrics(id),
     score       REAL NOT NULL,
     flag        TEXT NOT NULL,
-    computed_at TEXT NOT NULL DEFAULT (datetime('now'))
+    source      TEXT NOT NULL DEFAULT 'report',  -- 'report' | 'fade'
+    as_of_date  TEXT NOT NULL,                   -- YYYY-MM-DD this score reflects
+    computed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(company_id, as_of_date, source)
 );
