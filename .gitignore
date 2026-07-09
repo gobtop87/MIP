@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+news_watch/news.db
+venv/
+.venv/
