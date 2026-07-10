@@ -89,4 +89,6 @@ def dashboard():
 
 if __name__ == "__main__":
     db.init_db()
-    app.run(debug=True, port=5000)
+    # 5000 collides with macOS AirPlay Receiver (returns its own 403 before
+    # Flask ever sees the request), so use 8000 instead.
+    app.run(debug=True, port=8000)
