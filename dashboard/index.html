@@ -286,6 +286,18 @@ html.dark .co-card:hover{box-shadow:0 4px 18px rgba(0,0,0,0.35);}
 .note-body{background:var(--gold-faint);border-left:3px solid var(--gold);
   border-radius:0 7px 7px 0;padding:14px 16px;font-size:13px;color:var(--ink2);line-height:1.7;}
 
+/* news */
+.news-item{display:flex;justify-content:space-between;gap:12px;padding:9px 0;
+  border-bottom:1px solid var(--divider);font-size:12.5px;}
+.news-item:last-child{border-bottom:none;}
+.news-item a{color:var(--ink);text-decoration:none;}
+.news-item a:hover{color:var(--gold);text-decoration:underline;}
+.news-meta{color:var(--ink3);font-size:10.5px;white-space:nowrap;margin-left:8px;}
+.news-tag{display:inline-block;font-size:9px;padding:1px 6px;border-radius:4px;
+  border:1px solid var(--divider);color:var(--ink3);margin-right:6px;vertical-align:middle;}
+.news-tag.competitor{color:var(--risk);border-color:var(--risk-border);}
+.news-empty{color:var(--ink3);font-size:12.5px;padding:6px 0;}
+
 /* time toggle */
 .time-tgl{display:flex;gap:3px;}
 .ttb{background:transparent;border:1px solid var(--divider);border-radius:5px;
@@ -504,6 +516,14 @@ html.dark .tog-rail{background:rgba(255,255,255,0.15);}
         <div class="dcard">
           <div class="dcard-title">Company Overview</div>
           <div class="ov-grid" id="d-overview"></div>
+        </div>
+      </div>
+
+      <!-- Recent News (live, from news_watch/alerts) -->
+      <div class="dgrid full">
+        <div class="dcard">
+          <div class="dcard-title">Recent News</div>
+          <div id="d-news"></div>
         </div>
       </div>
 
@@ -956,6 +976,7 @@ function showDetail(id){
   });
   document.getElementById('d-overview').innerHTML=co.overview.map(o=>`<div class="ov-item"><div class="ov-lbl">${o.l}</div><div class="ov-val">${o.v}</div></div>`).join('');
   document.getElementById('d-notes').textContent=co.notes;
+  renderNews(co);
   cTime='3m';
   document.querySelectorAll('#time-tgl .ttb').forEach(b=>b.classList.toggle('act',b.textContent==='3M'));
   renderTrend(co.trend3m);
@@ -963,6 +984,20 @@ function showDetail(id){
   document.getElementById('detail-view').style.display='block';
   document.getElementById('news-view').style.display='none';
   document.querySelector('.main-panel').scrollTop=0;
+}
+
+function renderNews(co){
+  const el=document.getElementById('d-news');
+  const news=co.news||[];
+  if(news.length===0){ el.innerHTML='<div class="news-empty">No recent news matched for this company.</div>'; return; }
+  el.innerHTML=news.map(n=>`
+    <div class="news-item">
+      <div>
+        <span class="news-tag ${n.is_competitor_mention?'competitor':''}">${escHtml(n.matched_term)}</span>
+        <a href="${safeHref(n.url)}" target="_blank" rel="noopener noreferrer">${escHtml(n.headline)}</a>
+      </div>
+      <div class="news-meta">${escHtml(n.source_name||'')}</div>
+    </div>`).join('');
 }
 
 function renderTrend(data){
@@ -1000,6 +1035,32 @@ function showDash(){
   if(trendInst){trendInst.destroy();trendInst=null;}
   rebuildDashCharts();
   document.querySelector('.main-panel').scrollTop=0;
+}
+
+// ── LIVE DATA ──
+// Merges live flag/score/runway/news/alerts from app.py's /api/companies
+// into the COS array above, keyed by id. KPI scorecards, thesis, overview,
+// and partner notes stay as illustrative hardcoded data — Pair B's schema
+// doesn't yet have that per-company granularity. Falls back silently to the
+// hardcoded mock values if the API isn't reachable (e.g. opened as a static
+// file, or database/mip.db hasn't been built yet).
+async function applyLiveData(){
+  try{
+    const resp=await fetch('/api/companies');
+    if(!resp.ok) return;
+    const live=await resp.json();
+    live.forEach(l=>{
+      const co=COS.find(c=>c.id===l.id); if(!co) return;
+      if(l.flag){ co.flag=l.flag; co.flagLbl=l.flagLbl; }
+      if(l.score!==null&&l.score!==undefined) co.score=l.score;
+      if(l.why) co.why=l.why;
+      if(l.runwayMo!==null&&l.runwayMo!==undefined){ co.runwayMo=l.runwayMo; co.runway=l.runway; }
+      co.news=l.news||[];
+      co.alerts=l.alerts||[];
+    });
+  }catch(e){
+    console.warn('Live data unavailable, using mock data:',e);
+  }
 }
 
 function setActiveNav(id){
@@ -1087,9 +1148,11 @@ function renderNewsTable(items){
 
 // ── INIT ──
 updateLogoForTheme();
-buildAlerts();
-renderList();
-rebuildDashCharts();
+applyLiveData().finally(()=>{
+  buildAlerts();
+  renderList();
+  rebuildDashCharts();
+});
 </script>
 </body>
 </html>

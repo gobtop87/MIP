@@ -1,9 +1,9 @@
-"""Mock portfolio company list for Assignment 4 (Watch the News).
+"""Portfolio company list for Assignment 4 (Watch the News).
 
-Company names are anonymized (Company A, B, C...) since this is a dev/demo
-build. Sectors and competitor names are real so genuine news actually
-matches. Swap in real portfolio company names + real competitors once this
-is wired to the shared Supabase database from Assignment 1.
+IDs and names match the real dashboard's 6 companies (dashboard/index.html)
+so this module, the alerts/ module, and the dashboard's API layer (app.py)
+can all refer to the same company without a separate mapping table.
+Competitor names are real so genuine news actually matches.
 """
 
 # Keywords worth watching for any company, regardless of sector. Trimmed to
@@ -26,46 +26,46 @@ GENERAL_KEYWORDS = [
 
 COMPANIES = [
     {
-        "id": "company-a",
-        "name": "Company A",
-        "sector": "Fintech / Payments",
-        "competitors": ["Stripe", "Plaid", "Adyen", "Square", "Block Inc"],
-        "keywords": GENERAL_KEYWORDS + ["payments", "fraud detection"],
+        "id": "nexahealth",
+        "name": "NexaHealth",
+        "sector": "Healthcare",
+        "competitors": ["Teladoc", "Hims & Hers", "Cerebral", "Amwell"],
+        "keywords": GENERAL_KEYWORDS + ["telehealth", "fda", "clinical trial"],
     },
     {
-        "id": "company-b",
-        "name": "Company B",
-        "sector": "AI / ML Infrastructure",
-        "competitors": ["OpenAI", "Anthropic", "Scale AI", "Databricks", "Hugging Face"],
-        "keywords": GENERAL_KEYWORDS + ["large language model", "foundation model", "GPU"],
-    },
-    {
-        "id": "company-c",
-        "name": "Company C",
+        "id": "gridlock",
+        "name": "GridLock AI",
         "sector": "Cybersecurity",
         "competitors": ["CrowdStrike", "Palo Alto Networks", "SentinelOne", "Okta"],
         "keywords": GENERAL_KEYWORDS + ["ransomware", "vulnerability", "breach"],
     },
     {
-        "id": "company-d",
-        "name": "Company D",
-        "sector": "E-commerce / Logistics",
-        "competitors": ["Shopify", "ShipBob", "Flexport", "Faire"],
-        "keywords": GENERAL_KEYWORDS + ["supply chain", "fulfillment", "warehouse"],
+        "id": "pathwise",
+        "name": "PathWise",
+        "sector": "AI / ML Infrastructure",
+        "competitors": ["OpenAI", "Anthropic", "Scale AI", "Databricks", "Hugging Face"],
+        "keywords": GENERAL_KEYWORDS + ["large language model", "foundation model", "GPU"],
     },
     {
-        "id": "company-e",
-        "name": "Company E",
-        "sector": "HealthTech",
-        "competitors": ["Teladoc", "Ro", "Hims & Hers", "Cerebral"],
-        "keywords": GENERAL_KEYWORDS + ["telehealth", "fda", "clinical trial"],
+        "id": "solarvault",
+        "name": "SolarVault",
+        "sector": "Clean Energy",
+        "competitors": ["Sunrun", "SunPower", "Tesla Energy", "Enphase Energy"],
+        "keywords": GENERAL_KEYWORDS + ["solar", "battery storage", "clean energy"],
     },
     {
-        "id": "company-f",
-        "name": "Company F",
-        "sector": "DevTools / SaaS",
-        "competitors": ["Vercel", "Datadog", "GitHub", "Atlassian"],
-        "keywords": GENERAL_KEYWORDS + ["outage", "developer platform", "api"],
+        "id": "cognify",
+        "name": "Cognify Health",
+        "sector": "Healthcare",
+        "competitors": ["Tempus", "Komodo Health", "Innovaccer", "Butterfly Network"],
+        "keywords": GENERAL_KEYWORDS + ["clinical data", "diagnostics", "electronic health record"],
+    },
+    {
+        "id": "vaultnet",
+        "name": "VaultNet",
+        "sector": "Cybersecurity",
+        "competitors": ["Zscaler", "Cloudflare", "Fortinet", "Rapid7"],
+        "keywords": GENERAL_KEYWORDS + ["firewall", "zero trust", "breach"],
     },
 ]
 

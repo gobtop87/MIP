@@ -3,28 +3,58 @@
 ## Dashboard (UI)
 
 `dashboard/index.html` is the project's UI — a self-contained portfolio
-dashboard (company list, risk/follow-on/on-track flags, trend charts).
-`app.py` is a minimal Flask server that serves it, and is the intended home
-for future routes/pages and any real-data API endpoints.
+dashboard (company list, risk/follow-on/on-track flags, trend charts) for
+the 6 real portfolio companies: NexaHealth, GridLock AI, PathWise,
+SolarVault, Cognify Health, VaultNet.
+
+`app.py` serves it and exposes `/api/companies`, which joins live data from
+the three previously-separate modules by company name (none of them share
+an ID scheme):
+- `database/mip.db` (Pair B, Assignments 1+3) — score, flag, flag_reason, runway
+- `news_watch/news.db` (Assignment 4) — recent news, matched per company
+- `news_watch/news.db` (Assignment 5, same file) — urgency-rated alerts
+
+The dashboard's JS fetches this on load and merges it into the existing
+company data by id. **Flag, score, "why flagged" reason, runway, and the
+Recent News panel are live.** The per-company KPI scorecards, investment
+thesis, company overview, and partner notes stay as illustrative hardcoded
+content — Pair B's schema doesn't yet have that level of per-company detail,
+so wiring those up is future work, not done here.
+
+Setup (builds all three underlying databases, then serves the dashboard):
 
 ```bash
 python3 -m venv venv
 ./venv/bin/pip install -r requirements.txt
+
+# 1. Score/flag data (Pair B's module)
+python3 database/build_db.py
+python3 database/fade_score.py
+
+# 2. News data (Assignment 4) — see "Run it" below for the live version;
+#    seed_demo_data.py works without any network access
+./venv/bin/python -m news_watch.seed_demo_data
+
+# 3. Alerts (Assignment 5) — optional, /api/companies degrades gracefully
+#    to an empty alerts list if this hasn't been run
+./venv/bin/python -m alerts.generate_alerts
+
+# 4. Serve the dashboard
 ./venv/bin/python app.py
 ```
 
-Then open http://127.0.0.1:5000 in a browser.
+Then open http://127.0.0.1:8000 in a browser. (Not 5000 — that port collides
+with AirPlay Receiver on modern macOS; see `news_watch/webapp.py`.)
 
-Note: the "Morning Dashboard" page still renders from a hardcoded mock
-company array in its own `<script>` block, not from this repo's data.
-Wiring it to real data (`database/`, `alerts/`, etc.) means adding more API
-routes to `app.py` and replacing that mock array with a `fetch()` call —
-not done yet.
+Because `database/mip.db`'s seed report dates are relative to when it's
+built, re-run `database/build_db.py` + `database/fade_score.py` periodically
+so the fade job's grace period doesn't stale out the flags.
 
-The **"News Feed"** page (top nav) is wired to real data: it calls
+The **"News Feed"** page (top nav) is also wired to real data: it calls
 `GET /api/news` (in `app.py`, reusing `news_watch/webapp.py`'s query
-functions) to show Assignment 4's actual matched news items from
-`news_watch/news.db`, filterable by company. Run
+functions) to show all of Assignment 4's matched news items from
+`news_watch/news.db`, filterable by company — a fuller browser than the
+per-company preview on the Morning Dashboard's detail view. Run
 `./venv/bin/python -m news_watch.fetch_news` (or `seed_demo_data` for a
 demo) first so there's something to show.
 
