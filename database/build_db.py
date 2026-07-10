@@ -13,53 +13,83 @@ from health_score import calculate_health_score, flag_from_score
 DB_PATH = os.path.join(os.path.dirname(__file__), "mip.db")
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
 
-# Four fake companies with four months of plausible metrics each. Numbers are
-# hand-picked to show a mix of outcomes: one growing steadily, one stable,
-# one slowly declining, and one clearly fading fast.
+# The 6 real dashboard companies (dashboard/index.html), so this database and
+# the live dashboard describe the same portfolio. `name` is the join key
+# used by app.py's API routes to line this table up with news_watch/news.db
+# and the dashboard's own company records — none of the three modules share
+# an ID scheme, but all three agree on these names.
+#
+# Report dates are set within the fade job's 30-day grace period of "today"
+# (see database/fade_score.py) so the seeded metrics alone determine each
+# company's flag, without staleness fading distorting it. Metrics are
+# hand-picked so calculate_health_score() lands each company in the same
+# risk/on_track/follow_on bucket the dashboard's hardcoded UI already shows.
 SEED_COMPANIES = [
     {
-        "name": "Nimbus Analytics",
-        "industry": "SaaS",
-        "founded_year": 2021,
-        "metrics": [
-            # report_date, revenue, burn_rate, cash_balance, growth_rate
-            ("2026-03-01", 180000, 90000, 900000, 0.090),
-            ("2026-04-01", 196000, 92000, 950000, 0.089),
-            ("2026-05-01", 214000, 95000, 1000000, 0.092),
-            ("2026-06-01", 235000, 98000, 1050000, 0.098),
-        ],
-    },
-    {
-        "name": "Farmwise Robotics",
-        "industry": "AgTech",
-        "founded_year": 2019,
-        "metrics": [
-            ("2026-03-01", 90000, 70000, 490000, 0.030),
-            ("2026-04-01", 92000, 71000, 419000, 0.022),
-            ("2026-05-01", 93500, 72000, 347000, 0.016),
-            ("2026-06-01", 95000, 73000, 274000, 0.016),
-        ],
-    },
-    {
-        "name": "Voltify",
-        "industry": "EV Charging Hardware",
+        "name": "NexaHealth",
+        "industry": "Healthcare",
         "founded_year": 2020,
         "metrics": [
-            ("2026-03-01", 150000, 140000, 700000, 0.060),
-            ("2026-04-01", 148000, 150000, 560000, 0.020),
-            ("2026-05-01", 140000, 155000, 405000, -0.020),
-            ("2026-06-01", 130000, 160000, 245000, -0.070),
+            # report_date, revenue, burn_rate, cash_balance, growth_rate
+            ("2026-04-01", 120000, 140000, 560000, 0.020),
+            ("2026-05-01", 118000, 145000, 415000, -0.017),
+            ("2026-06-01", 112000, 150000, 265000, -0.051),
+            ("2026-07-01", 105000, 155000, 110000, -0.063),
         ],
     },
     {
-        "name": "Sparrow Health",
-        "industry": "HealthTech",
+        "name": "GridLock AI",
+        "industry": "Cybersecurity",
+        "founded_year": 2021,
+        "metrics": [
+            ("2026-04-01", 200000, 210000, 650000, 0.010),
+            ("2026-05-01", 195000, 215000, 435000, -0.025),
+            ("2026-06-01", 188000, 220000, 215000, -0.036),
+            ("2026-07-01", 180000, 225000, 90000, -0.044),
+        ],
+    },
+    {
+        "name": "PathWise",
+        "industry": "AI / ML Infrastructure",
         "founded_year": 2022,
         "metrics": [
-            ("2026-03-01", 40000, 95000, 180000, -0.030),
-            ("2026-04-01", 37000, 97000, 120000, -0.075),
-            ("2026-05-01", 33000, 99000, 65000, -0.108),
-            ("2026-06-01", 29000, 101000, 20000, -0.121),
+            ("2026-04-01", 2800000, 900000, 14000000, 0.140),
+            ("2026-05-01", 3200000, 950000, 15500000, 0.143),
+            ("2026-06-01", 3600000, 1000000, 17000000, 0.125),
+            ("2026-07-01", 3900000, 1050000, 19000000, 0.100),
+        ],
+    },
+    {
+        "name": "SolarVault",
+        "industry": "Clean Energy",
+        "founded_year": 2019,
+        "metrics": [
+            ("2026-04-01", 1900000, 700000, 9000000, 0.090),
+            ("2026-05-01", 2050000, 720000, 9600000, 0.079),
+            ("2026-06-01", 2200000, 740000, 10200000, 0.073),
+            ("2026-07-01", 2350000, 760000, 10800000, 0.068),
+        ],
+    },
+    {
+        "name": "Cognify Health",
+        "industry": "Healthcare",
+        "founded_year": 2020,
+        "metrics": [
+            ("2026-04-01", 850000, 520000, 3200000, 0.045),
+            ("2026-05-01", 880000, 530000, 3400000, 0.035),
+            ("2026-06-01", 905000, 540000, 3550000, 0.028),
+            ("2026-07-01", 930000, 550000, 3700000, 0.028),
+        ],
+    },
+    {
+        "name": "VaultNet",
+        "industry": "Cybersecurity",
+        "founded_year": 2018,
+        "metrics": [
+            ("2026-04-01", 1200000, 650000, 5000000, 0.050),
+            ("2026-05-01", 1260000, 660000, 5250000, 0.050),
+            ("2026-06-01", 1320000, 670000, 5500000, 0.048),
+            ("2026-07-01", 1390000, 680000, 5750000, 0.053),
         ],
     },
 ]
