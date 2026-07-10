@@ -50,6 +50,14 @@ Because `database/mip.db`'s seed report dates are relative to when it's
 built, re-run `database/build_db.py` + `database/fade_score.py` periodically
 so the fade job's grace period doesn't stale out the flags.
 
+The **"News Feed"** page (top nav) is also wired to real data: it calls
+`GET /api/news` (in `app.py`, reusing `news_watch/webapp.py`'s query
+functions) to show all of Assignment 4's matched news items from
+`news_watch/news.db`, filterable by company — a fuller browser than the
+per-company preview on the Morning Dashboard's detail view. Run
+`./venv/bin/python -m news_watch.fetch_news` (or `seed_demo_data` for a
+demo) first so there's something to show.
+
 # MIP — News Watcher (Assignment 4)
 
 Pulls news about portfolio companies and their competitors from NewsAPI, SEC

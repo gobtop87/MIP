@@ -11,14 +11,22 @@ news_watch/config.py's COMPANIES list is the single source of truth for
 company id <-> name, since the dashboard's own IDs (nexahealth, gridlock,
 ...) were adopted there specifically so this layer needs no separate
 mapping table.
+
+/api/companies backs the "Morning Dashboard" page (per-company flag, score,
+why-flagged reason, runway, and a short recent-news/alerts preview).
+/api/news backs the standalone "News Feed" page (all of Assignment 4's
+matched news items, filterable by company) — it reuses news_watch/webapp.py's
+query functions rather than duplicating them.
 """
 import sqlite3
 from pathlib import Path
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 
+from news_watch import db as news_db
 from news_watch.config import COMPANIES
 from news_watch.db import get_conn as get_news_conn
+from news_watch.webapp import get_news_items, get_summary
 
 BASE_DIR = Path(__file__).resolve().parent
 DASHBOARD_DIR = BASE_DIR / "dashboard"
@@ -118,6 +126,21 @@ def api_companies():
         entry["alerts"] = _alerts_for(c["id"])
         result.append(entry)
     return jsonify(result)
+
+
+@app.route("/api/news")
+def api_news():
+    """Assignment 4's news matches, for the dashboard's News Feed page."""
+    news_db.init_db()
+    company_id = request.args.get("company") or None
+    return jsonify(
+        {
+            "companies": COMPANIES,
+            "summary": get_summary(),
+            "items": get_news_items(company_id=company_id),
+            "total_today": news_db.count_items_today(),
+        }
+    )
 
 
 if __name__ == "__main__":
