@@ -3,7 +3,7 @@ matched for them. Reads straight from news_watch/news.db.
 
 Run:
     ./venv/bin/python -m news_watch.webapp
-Then open http://localhost:5000
+Then open http://localhost:8000
 """
 
 import sys

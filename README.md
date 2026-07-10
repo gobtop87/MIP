@@ -72,7 +72,7 @@ side by side, with click-to-filter by company.
 ./venv/bin/python -m news_watch.webapp
 ```
 
-Then open http://localhost:5000. It reads straight from `news_watch/news.db`,
+Then open http://localhost:8000. It reads straight from `news_watch/news.db`,
 so it updates automatically after you run `fetch_news.py` — no separate
 sync step.
 
