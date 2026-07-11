@@ -1,5 +1,16 @@
 # MIP
 
+## Quick start
+
+```bash
+./run.sh
+```
+
+Sets up the venv (first run only), rebuilds the score/flag and news/alerts
+data, starts the server, and opens `http://127.0.0.1:8000` in your browser
+automatically. Safe to re-run any time — see "Dashboard (UI)" below for
+what each step does if you want to run them individually.
+
 ## Dashboard (UI)
 
 `dashboard/index.html` is the project's UI — a self-contained portfolio
