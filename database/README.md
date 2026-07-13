@@ -32,6 +32,24 @@ Their numbers are made up but realistic, and deliberately span the
 risk/watch/on_track buckets. Safe to re-run — it deletes and reseeds any
 existing `TestCo *` rows each time rather than duplicating them.
 
+## Computing scores
+
+`build_db.py`/`seed_test_companies.py` score companies as part of seeding
+them. `compute_score.py` is the standalone version of that step (Assignment
+2): given a company that already has `monthly_metrics` rows, it pulls the
+latest one, runs it through `calculate_health_score()`, writes the result
+to `scores` (upserted — one row per company), and appends a matching
+`source='report'` row to `score_history` so past calculations are never
+lost.
+
+```
+python3 database/compute_score.py <company_id>   # one company
+python3 database/compute_score.py --all           # every company
+```
+
+Re-running is safe: it recomputes from the same latest report and replaces
+that report's `scores`/`score_history` rows instead of duplicating them.
+
 All database access is isolated in `db.py` — `get_conn()` (a context
 manager yielding a connection, committed/closed on exit) and `init_db()`
 (builds `mip.db` from `schema.sql`). `build_db.py`, `fade_score.py`, and
