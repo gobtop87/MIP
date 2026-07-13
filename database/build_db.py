@@ -90,85 +90,99 @@ SEED_COMPANIES = [
 ]
 
 
-def build_database(conn):
-    for company in SEED_COMPANIES:
+def seed_company(conn, name, industry, founded_year, metrics):
+    """
+    Insert one company plus its monthly metrics, scoring each report with
+    calculate_health_score() and logging it to score_history. `metrics` is a
+    list of (report_date, revenue, burn_rate, cash_balance, growth_rate)
+    tuples, oldest first. Returns the new company's id.
+    """
+    cur = conn.execute(
+        "INSERT INTO companies (name, industry, founded_year) VALUES (?, ?, ?)",
+        (name, industry, founded_year),
+    )
+    company_id = cur.lastrowid
+
+    latest_metric_id = None
+    latest_score = None
+    latest_flag = None
+
+    for report_date, revenue, burn_rate, cash_balance, growth_rate in metrics:
+        runway_months = cash_balance / burn_rate
+
         cur = conn.execute(
-            "INSERT INTO companies (name, industry, founded_year) VALUES (?, ?, ?)",
-            (company["name"], company["industry"], company["founded_year"]),
+            """INSERT INTO monthly_metrics
+               (company_id, report_date, revenue, burn_rate, cash_balance,
+                runway_months, growth_rate)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (company_id, report_date, revenue, burn_rate, cash_balance,
+             runway_months, growth_rate),
         )
-        company_id = cur.lastrowid
+        metric_id = cur.lastrowid
 
-        latest_metric_id = None
-        latest_score = None
-        latest_flag = None
-
-        for report_date, revenue, burn_rate, cash_balance, growth_rate in company["metrics"]:
-            runway_months = cash_balance / burn_rate
-
-            cur = conn.execute(
-                """INSERT INTO monthly_metrics
-                   (company_id, report_date, revenue, burn_rate, cash_balance,
-                    runway_months, growth_rate)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (company_id, report_date, revenue, burn_rate, cash_balance,
-                 runway_months, growth_rate),
-            )
-            metric_id = cur.lastrowid
-
-            # The one call that will change when the real formula lands.
-            score = calculate_health_score(revenue, burn_rate, runway_months, growth_rate)
-            flag = flag_from_score(score)
-
-            conn.execute(
-                """INSERT INTO score_history
-                   (company_id, metric_id, score, flag, source, as_of_date)
-                   VALUES (?, ?, ?, ?, 'report', ?)""",
-                (company_id, metric_id, score, flag, report_date),
-            )
-
-            latest_metric_id, latest_score, latest_flag = metric_id, score, flag
+        # The one call that will change when the real formula lands.
+        score = calculate_health_score(revenue, burn_rate, runway_months, growth_rate)
+        flag = flag_from_score(score)
 
         conn.execute(
-            """INSERT INTO scores (company_id, metric_id, score, flag)
-               VALUES (?, ?, ?, ?)""",
-            (company_id, latest_metric_id, latest_score, latest_flag),
+            """INSERT INTO score_history
+               (company_id, metric_id, score, flag, source, as_of_date)
+               VALUES (?, ?, ?, ?, 'report', ?)""",
+            (company_id, metric_id, score, flag, report_date),
         )
+
+        latest_metric_id, latest_score, latest_flag = metric_id, score, flag
+
+    conn.execute(
+        """INSERT INTO scores (company_id, metric_id, score, flag)
+           VALUES (?, ?, ?, ?)""",
+        (company_id, latest_metric_id, latest_score, latest_flag),
+    )
+    return company_id
+
+
+def build_database(conn):
+    for company in SEED_COMPANIES:
+        seed_company(conn, company["name"], company["industry"], company["founded_year"], company["metrics"])
+
+
+def print_company_data(conn, company_id, name, industry, founded_year):
+    print(f"\n=== {name} ({industry}, founded {founded_year}) ===")
+
+    print("  Monthly metrics:")
+    metrics = conn.execute(
+        """SELECT report_date, revenue, burn_rate, cash_balance, runway_months, growth_rate
+           FROM monthly_metrics WHERE company_id = ? ORDER BY report_date""",
+        (company_id,),
+    ).fetchall()
+    for report_date, revenue, burn_rate, cash_balance, runway_months, growth_rate in metrics:
+        print(
+            f"    {report_date}  revenue=${revenue:>9,.0f}  burn=${burn_rate:>8,.0f}  "
+            f"cash=${cash_balance:>10,.0f}  runway={runway_months:5.2f}mo  "
+            f"growth={growth_rate:+.1%}"
+        )
+
+    print("  Score history:")
+    history = conn.execute(
+        """SELECT mm.report_date, sh.score, sh.flag
+           FROM score_history sh
+           JOIN monthly_metrics mm ON mm.id = sh.metric_id
+           WHERE sh.company_id = ? ORDER BY mm.report_date""",
+        (company_id,),
+    ).fetchall()
+    for report_date, score, flag in history:
+        print(f"    {report_date}  score={score:5.1f}  flag={flag}")
+
+    current = conn.execute(
+        "SELECT score, flag FROM scores WHERE company_id = ?", (company_id,)
+    ).fetchone()
+    print(f"  Current score/flag: {current[0]:.1f} / {current[1]}")
 
 
 def print_seeded_data(conn):
     companies = conn.execute("SELECT id, name, industry, founded_year FROM companies").fetchall()
-
     for company_id, name, industry, founded_year in companies:
-        print(f"\n=== {name} ({industry}, founded {founded_year}) ===")
-
-        print("  Monthly metrics:")
-        metrics = conn.execute(
-            """SELECT report_date, revenue, burn_rate, cash_balance, runway_months, growth_rate
-               FROM monthly_metrics WHERE company_id = ? ORDER BY report_date""",
-            (company_id,),
-        ).fetchall()
-        for report_date, revenue, burn_rate, cash_balance, runway_months, growth_rate in metrics:
-            print(
-                f"    {report_date}  revenue=${revenue:>9,.0f}  burn=${burn_rate:>8,.0f}  "
-                f"cash=${cash_balance:>10,.0f}  runway={runway_months:5.2f}mo  "
-                f"growth={growth_rate:+.1%}"
-            )
-
-        print("  Score history:")
-        history = conn.execute(
-            """SELECT mm.report_date, sh.score, sh.flag
-               FROM score_history sh
-               JOIN monthly_metrics mm ON mm.id = sh.metric_id
-               WHERE sh.company_id = ? ORDER BY mm.report_date""",
-            (company_id,),
-        ).fetchall()
-        for report_date, score, flag in history:
-            print(f"    {report_date}  score={score:5.1f}  flag={flag}")
-
-        current = conn.execute(
-            "SELECT score, flag FROM scores WHERE company_id = ?", (company_id,)
-        ).fetchone()
-        print(f"  Current score/flag: {current[0]:.1f} / {current[1]}")
+        print_company_data(conn, company_id, name, industry, founded_year)
 
 
 if __name__ == "__main__":

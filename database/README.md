@@ -19,6 +19,19 @@ few months of metrics each, scores them with the placeholder formula in
 `health_score.py`, and prints the result. `calculate_health_score()` is
 the only thing that should need to change when the real formula is ready.
 
+`seed_test_companies.py` adds 6 obviously-fake companies (`TestCo A`
+through `TestCo F`) on top of the real ones, for hand-verifying the scoring
+formula (Assignment 2, step 3) without risking mixing test data into the
+real portfolio:
+
+```
+python3 database/seed_test_companies.py
+```
+
+Their numbers are made up but realistic, and deliberately span the
+risk/watch/on_track buckets. Safe to re-run — it deletes and reseeds any
+existing `TestCo *` rows each time rather than duplicating them.
+
 All database access is isolated in `db.py` — `get_conn()` (a context
 manager yielding a connection, committed/closed on exit) and `init_db()`
 (builds `mip.db` from `schema.sql`). `build_db.py`, `fade_score.py`, and
