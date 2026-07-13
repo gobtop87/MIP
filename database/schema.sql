@@ -1,13 +1,16 @@
 -- =============================================================================
 -- Local prototype schema (SQLite) for the "score fading & flags" pipeline.
 --
--- This mirrors the tables the real project will have in Supabase (Postgres).
--- Table/column names are chosen to map 1:1 onto the real schema later:
+-- This mirrors the tables the real project will have in Supabase (Postgres) —
+-- see schema_supabase.sql for that same schema in Postgres syntax, ready to
+-- paste into the Supabase SQL editor once a project exists. Table/column
+-- names are identical between the two:
 --   companies       -> Supabase `companies`
 --   monthly_metrics -> Supabase `monthly_metrics` (the monthly report data)
 --   scores          -> Supabase `scores`          (latest score per company)
 --   score_history   -> Supabase `score_history`   (append-only log, used to
 --                                                   detect "fading" trends)
+--   flag_history    -> Supabase `flag_history`     (status-change audit log)
 -- =============================================================================
 
 -- One row per portfolio company.
@@ -46,7 +49,7 @@ CREATE TABLE scores (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id  INTEGER NOT NULL UNIQUE REFERENCES companies(id),
     metric_id   INTEGER NOT NULL REFERENCES monthly_metrics(id),
-    score       REAL NOT NULL,   -- 0-100 placeholder health score
+    score       REAL NOT NULL,   -- 0-100 health score (see health_score.py)
     flag        TEXT NOT NULL,   -- 'on_track' | 'watch' | 'at_risk'
     computed_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

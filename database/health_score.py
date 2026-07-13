@@ -1,19 +1,16 @@
 """
-Placeholder health-score formula.
+MIP portfolio health-score formula.
 
-Isolated in this one module/function on purpose: once the team designs the
-real scoring model, only `calculate_health_score` (and maybe `flag_from_score`)
-needs to be replaced. Nothing else in the database/seeding code should change.
+Isolated in this one module/function on purpose: if the weights or caps ever
+need to change, only `calculate_health_score` (and maybe `flag_from_score`)
+should need editing. Nothing else in the database/seeding code should change.
 """
 
 
 def calculate_health_score(revenue, burn_rate, runway_months, growth_rate):
     """
-    Turn a company's raw monthly metrics into a placeholder 0-100 score.
-
-    THIS IS A STAND-IN FORMULA, not a validated model. It weights runway,
-    growth, and burn efficiency by gut-feel percentages just so the rest of
-    the pipeline (storage, history, flags) has real numbers to work with.
+    Turn a company's raw monthly metrics into a 0-100 health score, weighted
+    40% runway, 35% month-over-month growth, 25% burn efficiency.
     """
     # Runway: 12+ months of cash left is "safe" -> full marks.
     runway_score = min(runway_months / 12, 1.0) * 40
