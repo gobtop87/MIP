@@ -8,17 +8,23 @@ daily fade/flag (risk / follow-on / on track) job.
 
 Until the real Supabase tables exist, `schema.sql` + `build_db.py` stand
 up a local SQLite database (`mip.db`) with the same shape: `companies`,
-`monthly_metrics`, `scores`, `score_history`. Run it with:
+`monthly_metrics`, `scores`, `score_history`, `flag_history`. Run it with:
 
 ```
 python3 database/build_db.py
 ```
 
-It seeds 4 fake companies with a few months of metrics each, scores them
-with the placeholder formula in `health_score.py`, and prints the result.
-`calculate_health_score()` is the only thing that should need to change
-when the real formula is ready; swap the table names for the Supabase
-equivalents when that schema lands.
+It seeds 6 real portfolio companies (see `dashboard/index.html`) with a
+few months of metrics each, scores them with the placeholder formula in
+`health_score.py`, and prints the result. `calculate_health_score()` is
+the only thing that should need to change when the real formula is ready.
+
+All database access is isolated in `db.py` — `get_conn()` (a context
+manager yielding a connection, committed/closed on exit) and `init_db()`
+(builds `mip.db` from `schema.sql`). `build_db.py`, `fade_score.py`, and
+`app.py` all go through these instead of opening their own connections, so
+swapping in the real Supabase/Postgres database later means rewriting only
+`db.py` — no other file needs to change.
 
 ## Score fading
 

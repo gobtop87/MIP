@@ -5,13 +5,8 @@ prints everything so you can see what got seeded.
 Run: python3 database/build_db.py
 """
 
-import os
-import sqlite3
-
+from db import DB_PATH, get_conn, init_db
 from health_score import calculate_health_score, flag_from_score
-
-DB_PATH = os.path.join(os.path.dirname(__file__), "mip.db")
-SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
 
 # The 6 real dashboard companies (dashboard/index.html), so this database and
 # the live dashboard describe the same portfolio. `name` is the join key
@@ -95,14 +90,7 @@ SEED_COMPANIES = [
 ]
 
 
-def build_database():
-    if os.path.exists(DB_PATH):
-        os.remove(DB_PATH)
-
-    conn = sqlite3.connect(DB_PATH)
-    with open(SCHEMA_PATH) as f:
-        conn.executescript(f.read())
-
+def build_database(conn):
     for company in SEED_COMPANIES:
         cur = conn.execute(
             "INSERT INTO companies (name, industry, founded_year) VALUES (?, ?, ?)",
@@ -146,9 +134,6 @@ def build_database():
             (company_id, latest_metric_id, latest_score, latest_flag),
         )
 
-    conn.commit()
-    return conn
-
 
 def print_seeded_data(conn):
     companies = conn.execute("SELECT id, name, industry, founded_year FROM companies").fetchall()
@@ -187,7 +172,8 @@ def print_seeded_data(conn):
 
 
 if __name__ == "__main__":
-    connection = build_database()
-    print(f"Built and seeded {DB_PATH}\n")
-    print_seeded_data(connection)
-    connection.close()
+    init_db(reset=True)
+    with get_conn() as connection:
+        build_database(connection)
+        print(f"Built and seeded {DB_PATH}\n")
+        print_seeded_data(connection)
