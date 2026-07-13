@@ -47,8 +47,14 @@ python3 database/compute_score.py <company_id>   # one company
 python3 database/compute_score.py --all           # every company
 ```
 
-Re-running is safe: it recomputes from the same latest report and replaces
-that report's `scores`/`score_history` rows instead of duplicating them.
+`scores` holds one row per company (the current snapshot, upserted on every
+run). `score_history` is strictly append-only: every call to
+`compute_score.py` inserts a new, timestamped row and never overwrites a
+previous one — even calling it twice in a row for the same company logs two
+history entries. (The daily fade job in `fade_score.py` is the one
+exception: its `source='fade'` rows dedup to one per company per day via a
+partial unique index scoped to that source only, so it can safely rerun
+without stacking penalties — `source='report'` rows are unaffected.)
 
 All database access is isolated in `db.py` — `get_conn()` (a context
 manager yielding a connection, committed/closed on exit) and `init_db()`

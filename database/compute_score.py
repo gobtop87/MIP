@@ -40,12 +40,13 @@ def _company_exists(conn, company_id):
 def compute_score_for_company(conn, company_id):
     """
     Score `company_id` from its latest monthly_metrics report, upsert
-    `scores`, and upsert the matching `score_history` ('report') row.
+    `scores` (the current snapshot), and append a new `score_history`
+    ('report') row logging this calculation.
 
     Returns (score, flag), or None if the company has no metrics reported
-    yet. Re-running for a company whose latest report hasn't changed is a
-    no-op: it recomputes the same score and replaces that report's history
-    row instead of appending a duplicate.
+    yet. Every call appends a fresh, timestamped history row — even calling
+    this twice in a row for the same company adds two rows, never
+    overwriting the first.
     """
     metric = _latest_metric(conn, company_id)
     if metric is None:
@@ -66,15 +67,13 @@ def compute_score_for_company(conn, company_id):
                computed_at = datetime('now')""",
         (company_id, metric_id, score, flag),
     )
+    # Always appends — every score calculation gets its own timestamped row,
+    # never overwriting a previous one (even a repeat run for the same
+    # company on the same day gets a new row here).
     conn.execute(
         """INSERT INTO score_history
            (company_id, metric_id, score, flag, source, as_of_date)
-           VALUES (?, ?, ?, ?, 'report', ?)
-           ON CONFLICT(company_id, as_of_date, source) DO UPDATE SET
-               metric_id = excluded.metric_id,
-               score = excluded.score,
-               flag = excluded.flag,
-               computed_at = datetime('now')""",
+           VALUES (?, ?, ?, ?, 'report', ?)""",
         (company_id, metric_id, score, flag, report_date),
     )
     return score, flag

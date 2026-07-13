@@ -107,7 +107,7 @@ def run_fade_job(conn, as_of_date=None):
             """INSERT INTO score_history
                (company_id, metric_id, score, flag, source, as_of_date, reason)
                VALUES (?, ?, ?, ?, 'fade', ?, ?)
-               ON CONFLICT(company_id, as_of_date, source)
+               ON CONFLICT(company_id, as_of_date) WHERE source = 'fade'
                DO UPDATE SET score = excluded.score,
                              flag = excluded.flag,
                              metric_id = excluded.metric_id,
