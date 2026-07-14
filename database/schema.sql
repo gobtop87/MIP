@@ -55,14 +55,20 @@ CREATE TABLE scores (
 -- rows per company is how the future "fading" job will detect a declining
 -- trend rather than just looking at a single snapshot.
 --
--- source: 'report' = score computed straight from a new monthly_metrics row;
+-- source: 'report' = score computed straight from a new monthly_metrics row
+--                      (see compute_score.py). Always appends: every score
+--                      calculation gets its own row, timestamped via
+--                      computed_at, and never overwrites a previous one —
+--                      even repeat calculations for the same company on the
+--                      same day each get their own row.
 --         'fade'    = score computed by the daily fade job for a day with no
 --                      new report. as_of_date is the calendar date the row's
 --                      score is valid for (the report_date for 'report' rows,
---                      the day the fade job ran for 'fade' rows). The unique
---                      constraint means re-running the fade job on the same
---                      day overwrites that day's row instead of stacking a
---                      second penalty on top.
+--                      the day the fade job ran for 'fade' rows). The partial
+--                      unique index below applies only to 'fade' rows, so
+--                      re-running the fade job on the same day overwrites
+--                      that day's row instead of stacking a second penalty
+--                      on top — 'report' rows are exempt from that dedup.
 CREATE TABLE score_history (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id  INTEGER NOT NULL REFERENCES companies(id),
@@ -72,9 +78,14 @@ CREATE TABLE score_history (
     source      TEXT NOT NULL DEFAULT 'report',  -- 'report' | 'fade'
     as_of_date  TEXT NOT NULL,                   -- YYYY-MM-DD this score reflects
     reason      TEXT,                            -- plain-English explanation ('fade' rows only)
-    computed_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(company_id, as_of_date, source)
+    computed_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Only 'fade' rows dedup by day; 'report' rows (compute_score.py) are always
+-- append-only, per row above.
+CREATE UNIQUE INDEX score_history_fade_daily
+    ON score_history(company_id, as_of_date)
+    WHERE source = 'fade';
 
 -- Append-only log of company status changes ('risk' | 'on_track' |
 -- 'follow_on'). Unlike score_history (one row per day, every day), this only

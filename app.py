@@ -23,6 +23,8 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
 
+from database.db import DB_PATH as MIP_DB_PATH
+from database.db import get_conn as get_mip_conn
 from news_watch import db as news_db
 from news_watch.config import COMPANIES
 from news_watch.db import get_conn as get_news_conn
@@ -30,7 +32,6 @@ from news_watch.webapp import get_news_items, get_summary
 
 BASE_DIR = Path(__file__).resolve().parent
 DASHBOARD_DIR = BASE_DIR / "dashboard"
-MIP_DB_PATH = BASE_DIR / "database" / "mip.db"
 
 app = Flask(__name__)
 
@@ -46,8 +47,7 @@ def _score_flag_for(name):
     """Latest flag/score/runway for a company, from Pair B's database/mip.db."""
     if not MIP_DB_PATH.exists():
         return None
-    conn = sqlite3.connect(MIP_DB_PATH)
-    try:
+    with get_mip_conn() as conn:
         row = conn.execute(
             """
             SELECT c.flag, c.flag_reason, s.score, mm.runway_months
@@ -58,8 +58,6 @@ def _score_flag_for(name):
             """,
             (name,),
         ).fetchone()
-    finally:
-        conn.close()
     if not row or row[0] is None:
         return None
     flag, flag_reason, score, runway_months = row

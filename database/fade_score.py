@@ -23,13 +23,10 @@ scratch every run (base score + days-since-report), so:
 Run: python3 database/fade_score.py
 """
 
-import os
-import sqlite3
 from datetime import date, datetime
 
+from db import get_conn
 from flag_reason import generate_flag_reason
-
-DB_PATH = os.path.join(os.path.dirname(__file__), "mip.db")
 
 # Thresholds for labeling a company from its faded score. Given directly
 # (not a placeholder), so no PROVISIONAL marker needed.
@@ -110,7 +107,7 @@ def run_fade_job(conn, as_of_date=None):
             """INSERT INTO score_history
                (company_id, metric_id, score, flag, source, as_of_date, reason)
                VALUES (?, ?, ?, ?, 'fade', ?, ?)
-               ON CONFLICT(company_id, as_of_date, source)
+               ON CONFLICT(company_id, as_of_date) WHERE source = 'fade'
                DO UPDATE SET score = excluded.score,
                              flag = excluded.flag,
                              metric_id = excluded.metric_id,
@@ -163,8 +160,7 @@ def print_results(conn, results, as_of_date):
 
 
 if __name__ == "__main__":
-    connection = sqlite3.connect(DB_PATH)
     today = date.today()
-    fade_results = run_fade_job(connection, today)
-    print_results(connection, fade_results, today)
-    connection.close()
+    with get_conn() as connection:
+        fade_results = run_fade_job(connection, today)
+        print_results(connection, fade_results, today)
