@@ -14,11 +14,18 @@ from health_score import calculate_health_score, flag_from_score
 # and the dashboard's own company records — none of the three modules share
 # an ID scheme, but all three agree on these names.
 #
+# The dashboard's UI doesn't publish raw revenue/burn/cash (only score,
+# runway, and a rolled-up performance %), so those three are realistic
+# placeholders sized to the company's stage/sector. cash_balance for the most
+# recent month is *not* a placeholder, though: it's set to exactly
+# runway_months(dashboard) * burn_rate, so calculate_health_score() derives
+# the same runway the dashboard already shows, and earlier months are backed
+# out from that by walking net burn (burn - revenue) backwards month by
+# month. growth_rate is each month's actual revenue-over-revenue change.
+#
 # Report dates are set within the fade job's 30-day grace period of "today"
 # (see database/fade_score.py) so the seeded metrics alone determine each
-# company's flag, without staleness fading distorting it. Metrics are
-# hand-picked so calculate_health_score() lands each company in the same
-# risk/on_track/follow_on bucket the dashboard's hardcoded UI already shows.
+# company's flag, without staleness fading distorting it.
 SEED_COMPANIES = [
     {
         "name": "NexaHealth",
@@ -26,10 +33,10 @@ SEED_COMPANIES = [
         "founded_year": 2020,
         "metrics": [
             # report_date, revenue, burn_rate, cash_balance, growth_rate
-            ("2026-04-01", 120000, 140000, 560000, 0.020),
-            ("2026-05-01", 118000, 145000, 415000, -0.017),
-            ("2026-06-01", 112000, 150000, 265000, -0.051),
-            ("2026-07-01", 105000, 155000, 110000, -0.063),
+            ("2026-04-01", 120000, 140000, 735000, 0.020),
+            ("2026-05-01", 118000, 145000, 708000, -0.017),
+            ("2026-06-01", 112000, 150000, 670000, -0.051),
+            ("2026-07-01", 105000, 155000, 620000, -0.063),  # runway = 4.0mo, matches dashboard
         ],
     },
     {
@@ -37,10 +44,10 @@ SEED_COMPANIES = [
         "industry": "Cybersecurity",
         "founded_year": 2021,
         "metrics": [
-            ("2026-04-01", 200000, 210000, 650000, 0.010),
-            ("2026-05-01", 195000, 215000, 435000, -0.025),
-            ("2026-06-01", 188000, 220000, 215000, -0.036),
-            ("2026-07-01", 180000, 225000, 90000, -0.044),
+            ("2026-04-01", 200000, 210000, 1672000, 0.010),
+            ("2026-05-01", 195000, 215000, 1652000, -0.025),
+            ("2026-06-01", 188000, 220000, 1620000, -0.036),
+            ("2026-07-01", 180000, 225000, 1575000, -0.044),  # runway = 7.0mo, matches dashboard
         ],
     },
     {
@@ -48,10 +55,10 @@ SEED_COMPANIES = [
         "industry": "AI / ML Infrastructure",
         "founded_year": 2022,
         "metrics": [
-            ("2026-04-01", 2800000, 900000, 14000000, 0.140),
-            ("2026-05-01", 3200000, 950000, 15500000, 0.143),
-            ("2026-06-01", 3600000, 1000000, 17000000, 0.125),
-            ("2026-07-01", 3900000, 1050000, 19000000, 0.100),
+            ("2026-04-01", 2800000, 900000, 12250000, 0.140),
+            ("2026-05-01", 3200000, 950000, 14500000, 0.143),
+            ("2026-06-01", 3600000, 1000000, 17100000, 0.125),
+            ("2026-07-01", 3900000, 1050000, 19950000, 0.100),  # runway = 19.0mo, matches dashboard
         ],
     },
     {
@@ -59,10 +66,10 @@ SEED_COMPANIES = [
         "industry": "Clean Energy",
         "founded_year": 2019,
         "metrics": [
-            ("2026-04-01", 1900000, 700000, 9000000, 0.090),
-            ("2026-05-01", 2050000, 720000, 9600000, 0.079),
-            ("2026-06-01", 2200000, 740000, 10200000, 0.073),
-            ("2026-07-01", 2350000, 760000, 10800000, 0.068),
+            ("2026-04-01", 1900000, 700000, 7020000, 0.090),
+            ("2026-05-01", 2050000, 720000, 8350000, 0.079),
+            ("2026-06-01", 2200000, 740000, 9810000, 0.073),
+            ("2026-07-01", 2350000, 760000, 11400000, 0.068),  # runway = 15.0mo, matches dashboard
         ],
     },
     {
@@ -70,10 +77,10 @@ SEED_COMPANIES = [
         "industry": "Healthcare",
         "founded_year": 2020,
         "metrics": [
-            ("2026-04-01", 850000, 520000, 3200000, 0.045),
-            ("2026-05-01", 880000, 530000, 3400000, 0.035),
-            ("2026-06-01", 905000, 540000, 3550000, 0.028),
-            ("2026-07-01", 930000, 550000, 3700000, 0.028),
+            ("2026-04-01", 850000, 520000, 11005000, 0.045),
+            ("2026-05-01", 880000, 530000, 11355000, 0.035),
+            ("2026-06-01", 905000, 540000, 11720000, 0.028),
+            ("2026-07-01", 930000, 550000, 12100000, 0.028),  # runway = 22.0mo, matches dashboard
         ],
     },
     {
@@ -81,10 +88,10 @@ SEED_COMPANIES = [
         "industry": "Cybersecurity",
         "founded_year": 2018,
         "metrics": [
-            ("2026-04-01", 1200000, 650000, 5000000, 0.050),
-            ("2026-05-01", 1260000, 660000, 5250000, 0.050),
-            ("2026-06-01", 1320000, 670000, 5500000, 0.048),
-            ("2026-07-01", 1390000, 680000, 5750000, 0.053),
+            ("2026-04-01", 1200000, 650000, 14200000, 0.050),
+            ("2026-05-01", 1260000, 660000, 13600000, 0.050),
+            ("2026-06-01", 1320000, 670000, 12950000, 0.048),
+            ("2026-07-01", 1390000, 680000, 12240000, 0.053),  # runway = 18.0mo, matches dashboard
         ],
     },
 ]
