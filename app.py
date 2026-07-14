@@ -19,12 +19,16 @@ matched news items, filterable by company) — it reuses news_watch/webapp.py's
 query functions rather than duplicating them.
 """
 import sqlite3
+from datetime import date
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
 
 from database.db import DB_PATH as MIP_DB_PATH
 from database.db import get_conn as get_mip_conn
+from database.db import init_db as init_mip_db
+from database.flag_reason import generate_flag_reason
+from database.health_score import calculate_health_score, flag_from_score
 from news_watch import db as news_db
 from news_watch.config import COMPANIES
 from news_watch.db import get_conn as get_news_conn
@@ -36,6 +40,22 @@ DASHBOARD_DIR = BASE_DIR / "dashboard"
 app = Flask(__name__)
 
 FLAG_LABELS = {"risk": "Risk", "follow_on": "Follow-On", "on_track": "On Track"}
+COMPANIES_BY_ID = {c["id"]: c for c in COMPANIES}
+
+# Same thresholds fade_score.py's flag_from_faded_score uses for a company's
+# overall status. Duplicated rather than imported: fade_score.py uses
+# script-style bare imports (`from db import ...`) that only resolve when
+# it's run directly (`python3 database/fade_score.py`), not when imported as
+# database.fade_score from here.
+COMPANY_FLAG_THRESHOLDS = {"risk_below": 35, "follow_on_above": 75}
+
+
+def _company_flag_from_score(score):
+    if score < COMPANY_FLAG_THRESHOLDS["risk_below"]:
+        return "risk"
+    elif score > COMPANY_FLAG_THRESHOLDS["follow_on_above"]:
+        return "follow_on"
+    return "on_track"
 
 
 @app.route("/")
@@ -124,6 +144,121 @@ def api_companies():
         entry["alerts"] = _alerts_for(c["id"])
         result.append(entry)
     return jsonify(result)
+
+
+def _get_or_create_company(conn, name, industry):
+    row = conn.execute("SELECT id FROM companies WHERE name = ?", (name,)).fetchone()
+    if row:
+        return row[0]
+    cur = conn.execute(
+        "INSERT INTO companies (name, industry) VALUES (?, ?)", (name, industry)
+    )
+    return cur.lastrowid
+
+
+@app.route("/api/companies/<company_id>/metrics", methods=["POST"])
+def update_company_metrics(company_id):
+    """
+    Manually edit a company's monthly financials (revenue, burn, cash,
+    growth) and recompute its score/flag from them, same as a real monthly
+    report would. Writes to database/mip.db so the edit persists.
+    """
+    company = COMPANIES_BY_ID.get(company_id)
+    if not company:
+        return jsonify({"error": f"Unknown company id '{company_id}'"}), 404
+
+    data = request.get_json(silent=True) or {}
+    try:
+        revenue = float(data["revenue"])
+        burn_rate = float(data["burn_rate"])
+        cash_balance = float(data["cash_balance"])
+        growth_rate = float(data["growth_rate"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"error": "revenue, burn_rate, cash_balance, and growth_rate are required numbers"}), 400
+    if burn_rate <= 0:
+        return jsonify({"error": "burn_rate must be greater than 0"}), 400
+
+    runway_months = cash_balance / burn_rate
+    today = date.today().isoformat()
+
+    if not MIP_DB_PATH.exists():
+        init_mip_db()
+
+    with get_mip_conn() as conn:
+        company_row_id = _get_or_create_company(conn, company["name"], company.get("sector"))
+
+        conn.execute(
+            """INSERT INTO monthly_metrics
+               (company_id, report_date, revenue, burn_rate, cash_balance, runway_months, growth_rate)
+               VALUES (?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(company_id, report_date) DO UPDATE SET
+                   revenue = excluded.revenue,
+                   burn_rate = excluded.burn_rate,
+                   cash_balance = excluded.cash_balance,
+                   runway_months = excluded.runway_months,
+                   growth_rate = excluded.growth_rate""",
+            (company_row_id, today, revenue, burn_rate, cash_balance, runway_months, growth_rate),
+        )
+        metric_id = conn.execute(
+            "SELECT id FROM monthly_metrics WHERE company_id = ? AND report_date = ?",
+            (company_row_id, today),
+        ).fetchone()[0]
+
+        # health_score.py's own on_track/watch/at_risk vocabulary — stored
+        # only on scores/score_history, separate from the company-level
+        # risk/on_track/follow_on flag below (see database/README.md).
+        score = calculate_health_score(revenue, burn_rate, runway_months, growth_rate)
+        report_flag = flag_from_score(score)
+
+        conn.execute(
+            """INSERT INTO scores (company_id, metric_id, score, flag)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(company_id) DO UPDATE SET
+                   metric_id = excluded.metric_id,
+                   score = excluded.score,
+                   flag = excluded.flag,
+                   computed_at = datetime('now')""",
+            (company_row_id, metric_id, score, report_flag),
+        )
+        conn.execute(
+            """INSERT INTO score_history (company_id, metric_id, score, flag, source, as_of_date)
+               VALUES (?, ?, ?, ?, 'report', ?)""",
+            (company_row_id, metric_id, score, report_flag, today),
+        )
+
+        # A brand-new report is 0 days old, so fade_score.py's grace period
+        # means no fade penalty applies — the company-level flag is just
+        # this score run through the same thresholds the daily fade job uses.
+        company_flag = _company_flag_from_score(score)
+        reason = generate_flag_reason(
+            company_flag, False, 0, revenue, burn_rate, runway_months, growth_rate
+        )
+        old_flag = conn.execute(
+            "SELECT flag FROM companies WHERE id = ?", (company_row_id,)
+        ).fetchone()[0]
+        if old_flag != company_flag:
+            conn.execute(
+                """INSERT INTO flag_history (company_id, old_flag, new_flag, reason, as_of_date)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (company_row_id, old_flag, company_flag, reason, today),
+            )
+        conn.execute(
+            "UPDATE companies SET flag = ?, flag_reason = ? WHERE id = ?",
+            (company_flag, reason, company_row_id),
+        )
+
+    runway_mo = round(runway_months, 1)
+    return jsonify(
+        {
+            "id": company_id,
+            "score": round(score),
+            "flag": company_flag,
+            "flagLbl": FLAG_LABELS.get(company_flag, company_flag),
+            "why": f"<b>Why flagged:</b> {reason}",
+            "runwayMo": runway_mo,
+            "runway": f"{runway_mo:g} mo",
+        }
+    )
 
 
 @app.route("/api/news")
