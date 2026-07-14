@@ -12,8 +12,12 @@ fi
 echo "Installing dependencies..."
 ./venv/bin/pip install -q -r requirements.txt
 
-echo "Building score/flag data..."
-./venv/bin/python database/build_db.py >/dev/null
+if [ ! -f database/mip.db ]; then
+    echo "Building score/flag data (first run)..."
+    ./venv/bin/python database/build_db.py >/dev/null
+else
+    echo "Refreshing score fades/flags..."
+fi
 ./venv/bin/python database/fade_score.py >/dev/null
 
 echo "Seeding news data..."

@@ -41,12 +41,13 @@ No Supabase project/credentials were available when this was built, so:
    uses (keeps the two in sync — don't hand-edit `seed_supabase.sql`), then
    run its contents in the SQL editor to load the 6 companies + their
    monthly numbers.
-3. Point the Python modules at Postgres instead of SQLite: swap the
-   `sqlite3.connect(DB_PATH)` calls (in `build_db.py`, `fade_score.py`,
-   `import_monthly_metrics.py`, `app.py`) for a Postgres connection (e.g.
-   `psycopg2.connect(os.environ["DATABASE_URL"])`) and switch `?`
-   placeholders to `%s`. The insert/query logic itself doesn't need to
-   change — this schema was designed to make that swap mechanical.
+3. Point the code at Postgres instead of SQLite. All database access is now
+   funneled through `db.py` (see "Computing scores" below), so this is a
+   one-file change: rewrite `get_conn()`/`init_db()` there to open a Postgres
+   connection (e.g. `psycopg2.connect(os.environ["DATABASE_URL"])`) and
+   switch `?` placeholders to `%s`. The insert/query logic in every other
+   module stays as-is — the schema and the `db.py` boundary were both
+   designed to make that swap mechanical.
 
 Until then, `schema.sql` + `build_db.py` stand up a local SQLite database
 (`mip.db`) with the same shape, and this repo (shared via git) is how the
@@ -58,6 +59,19 @@ python3 database/build_db.py
 
 It seeds the 6 real companies described above with 4 months of metrics
 each, scores them, and prints the result.
+
+`seed_test_companies.py` adds 6 obviously-fake companies (`TestCo A`
+through `TestCo F`) on top of the real ones, for hand-verifying the scoring
+formula (Assignment 2, step 3) without risking mixing test data into the
+real portfolio:
+
+```
+python3 database/seed_test_companies.py
+```
+
+Their numbers are made up but realistic, and deliberately span the
+risk/watch/on_track buckets. Safe to re-run — it deletes and reseeds any
+existing `TestCo *` rows each time rather than duplicating them.
 
 ## Entering new monthly numbers
 
@@ -71,12 +85,43 @@ import**, no custom form.
    (defaults to the template's own path). `runway_months` and `growth_rate`
    are computed automatically — growth from the company's previous
    `monthly_metrics` row, so nobody computes a % change by hand.
-3. Re-run `build_db.py`'s scoring step (Assignment 2) / `fade_score.py`
-   (Assignment 3) afterward to turn the new numbers into an updated score
-   and flag — importing metrics alone doesn't recompute those.
+3. Run `compute_score.py` (below) and then `fade_score.py` (Assignment 3)
+   afterward to turn the new numbers into an updated score and flag —
+   importing metrics alone doesn't recompute those.
 
 The same script works unchanged against Supabase once the connection swap
 above is done (it only touches `monthly_metrics`).
+
+## Computing scores
+
+`build_db.py`/`seed_test_companies.py` score companies as part of seeding
+them. `compute_score.py` is the standalone version of that step (Assignment
+2): given a company that already has `monthly_metrics` rows, it pulls the
+latest one, runs it through `calculate_health_score()`, writes the result
+to `scores` (upserted — one row per company), and appends a matching
+`source='report'` row to `score_history` so past calculations are never
+lost.
+
+```
+python3 database/compute_score.py <company_id>   # one company
+python3 database/compute_score.py --all           # every company
+```
+
+`scores` holds one row per company (the current snapshot, upserted on every
+run). `score_history` is strictly append-only: every call to
+`compute_score.py` inserts a new, timestamped row and never overwrites a
+previous one — even calling it twice in a row for the same company logs two
+history entries. (The daily fade job in `fade_score.py` is the one
+exception: its `source='fade'` rows dedup to one per company per day via a
+partial unique index scoped to that source only, so it can safely rerun
+without stacking penalties — `source='report'` rows are unaffected.)
+
+All database access is isolated in `db.py` — `get_conn()` (a context
+manager yielding a connection, committed/closed on exit) and `init_db()`
+(builds `mip.db` from `schema.sql`). `build_db.py`, `fade_score.py`, and
+`app.py` all go through these instead of opening their own connections, so
+swapping in the real Supabase/Postgres database later means rewriting only
+`db.py` — no other file needs to change.
 
 ## Score fading
 

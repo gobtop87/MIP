@@ -18,15 +18,15 @@ cash_balance. Rows with a blank revenue/burn_rate/cash_balance are skipped
 
 Companies are matched by name and must already exist in `companies`. Running
 this doesn't compute a new score/flag — that's Assignment 2/3's job; run
-build_db.py's scoring step (or the real pipeline once it exists) afterward.
+compute_score.py (then fade_score.py) afterward.
 """
 
 import csv
 import os
-import sqlite3
 import sys
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "mip.db")
+from db import get_conn
+
 DEFAULT_CSV = os.path.join(os.path.dirname(__file__), "monthly_metrics_template.csv")
 
 
@@ -90,9 +90,9 @@ def import_csv(conn, csv_path):
 
 if __name__ == "__main__":
     csv_path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_CSV
-    connection = sqlite3.connect(DB_PATH)
 
-    imported_rows, skipped_rows = import_csv(connection, csv_path)
+    with get_conn() as connection:
+        imported_rows, skipped_rows = import_csv(connection, csv_path)
 
     print(f"Imported {len(imported_rows)} row(s) from {csv_path}:")
     for name, report_date, revenue, burn_rate, cash_balance, runway_months, growth_rate in imported_rows:
@@ -105,5 +105,3 @@ if __name__ == "__main__":
         print(f"\nSkipped {len(skipped_rows)} row(s):")
         for name, report_date, why in skipped_rows:
             print(f"  {name:<20} {report_date}  ({why})")
-
-    connection.close()
