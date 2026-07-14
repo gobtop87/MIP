@@ -64,7 +64,7 @@ def compute_score_for_company(conn, company_id):
                metric_id = excluded.metric_id,
                score = excluded.score,
                flag = excluded.flag,
-               computed_at = datetime('now')""",
+               computed_at = CURRENT_TIMESTAMP""",
         (company_id, metric_id, score, flag),
     )
     # Always appends — every score calculation gets its own timestamped row,

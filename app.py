@@ -24,6 +24,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
 
+from database.db import DATABASE_URL as MIP_DATABASE_URL
 from database.db import DB_PATH as MIP_DB_PATH
 from database.db import get_conn as get_mip_conn
 from database.db import init_db as init_mip_db
@@ -65,7 +66,7 @@ def dashboard():
 
 def _score_flag_for(name):
     """Latest flag/score/runway for a company, from Pair B's database/mip.db."""
-    if not MIP_DB_PATH.exists():
+    if not MIP_DATABASE_URL and not MIP_DB_PATH.exists():
         return None
     with get_mip_conn() as conn:
         row = conn.execute(
@@ -150,10 +151,9 @@ def _get_or_create_company(conn, name, industry):
     row = conn.execute("SELECT id FROM companies WHERE name = ?", (name,)).fetchone()
     if row:
         return row[0]
-    cur = conn.execute(
-        "INSERT INTO companies (name, industry) VALUES (?, ?)", (name, industry)
-    )
-    return cur.lastrowid
+    return conn.execute(
+        "INSERT INTO companies (name, industry) VALUES (?, ?) RETURNING id", (name, industry)
+    ).fetchone()[0]
 
 
 @app.route("/api/companies/<company_id>/metrics", methods=["POST"])
@@ -181,7 +181,7 @@ def update_company_metrics(company_id):
     runway_months = cash_balance / burn_rate
     today = date.today().isoformat()
 
-    if not MIP_DB_PATH.exists():
+    if not MIP_DATABASE_URL and not MIP_DB_PATH.exists():
         init_mip_db()
 
     with get_mip_conn() as conn:
@@ -217,7 +217,7 @@ def update_company_metrics(company_id):
                    metric_id = excluded.metric_id,
                    score = excluded.score,
                    flag = excluded.flag,
-                   computed_at = datetime('now')""",
+                   computed_at = CURRENT_TIMESTAMP""",
             (company_row_id, metric_id, score, report_flag),
         )
         conn.execute(

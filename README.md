@@ -11,6 +11,49 @@ data, starts the server, and opens `http://127.0.0.1:8000` in your browser
 automatically. Safe to re-run any time — see "Dashboard (UI)" below for
 what each step does if you want to run them individually.
 
+Each person who runs this locally gets their own private copy of the data
+(their own `database/mip.db`) — edits made through the dashboard's KPI editor
+don't show up on anyone else's machine. See "Deploying" below for a single
+shared, always-current version everyone can just open a link to.
+
+## Deploying (one shared URL, no terminal for anyone but you)
+
+Instead of everyone running `./run.sh` on their own laptop, host it once and
+share the link. This requires two free accounts (no credit card needed for
+either):
+
+**1. Supabase (the shared database — do this first)**
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. In its SQL editor, run `database/schema_supabase.sql`, then
+   `database/seed_supabase.sql` (paste each file's contents in and run).
+3. In Project Settings → Database, copy the connection string — you'll need
+   it in step 2 below. This is what makes KPI edits permanent and shared:
+   the data lives in Supabase, not on whichever computer happens to be
+   running the web server.
+
+**2. Render (hosts the actual dashboard)**
+
+1. Push this repo to GitHub (already done) and create an account at
+   [render.com](https://render.com).
+2. New → Blueprint, point it at this repo — it reads `render.yaml` at the
+   repo root and fills in the build/start commands automatically. (If the
+   Blueprint option doesn't pick it up, create a Web Service manually instead:
+   Runtime `Python 3`, Build Command
+   `pip install -r requirements.txt && python3 -m news_watch.seed_demo_data && (python3 -m news_watch.fetch_news || true) && python3 -m alerts.generate_alerts && python3 database/fade_score.py`,
+   Start Command `gunicorn app:app --bind 0.0.0.0:$PORT`, Plan `Free`.)
+3. In the service's Environment settings, add `DATABASE_URL` = the Supabase
+   connection string from step 1.3.
+4. Deploy. Render gives you one URL (`https://mip-dashboard.onrender.com` or
+   similar) — that's what you send to everyone. No terminal, no commands,
+   just the link.
+
+Notes: the free Render plan sleeps after 15 minutes of no traffic and takes
+~30 seconds to wake back up on the next visit — normal, not a bug. Scores/
+flags/KPI edits persist forever regardless (they live in Supabase, not on
+Render), but news/alerts get rebuilt fresh on every redeploy since those
+still use a local SQLite file on the web server, same as `./run.sh`.
+
 ## Dashboard (UI)
 
 `dashboard/index.html` is the project's UI — a self-contained portfolio

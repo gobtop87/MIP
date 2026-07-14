@@ -2,3 +2,5 @@ requests
 feedparser
 python-dotenv
 flask
+gunicorn
+psycopg2-binary
