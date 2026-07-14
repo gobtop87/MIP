@@ -312,6 +312,16 @@ html.dark .co-card:hover{box-shadow:0 4px 18px rgba(0,0,0,0.35);}
 .formula-box code{font-family:var(--mono);font-size:10px;color:var(--gold);
   background:var(--gold-faint);padding:1px 4px;border-radius:3px;}
 
+/* edit financials form */
+.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
+.edit-grid label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);
+  display:flex;flex-direction:column;gap:5px;}
+.edit-grid input{font-family:var(--mono);font-size:13px;padding:8px 10px;
+  border:1px solid var(--divider);border-radius:6px;background:var(--panel);color:var(--ink);}
+.edit-grid input:focus{outline:none;border-color:var(--gold);}
+.edit-actions{margin-top:12px;display:flex;gap:8px;align-items:center;}
+.edit-status{font-size:11px;}
+
 /* sec divider */
 .sec-div{font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:var(--ink3);
   padding:10px 0 4px;display:flex;align-items:center;gap:8px;}
@@ -482,6 +492,29 @@ html.dark .tog-rail{background:rgba(255,255,255,0.15);}
           </div>
           <div class="hero-meta" id="d-meta"></div>
           <div class="hero-why" id="d-why"></div>
+        </div>
+      </div>
+
+      <!-- Edit Financials (writes to database/mip.db, recomputes score/flag) -->
+      <div class="dgrid full">
+        <div class="dcard">
+          <div class="dcard-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Update Financials</span>
+            <button type="button" class="ttb" id="edit-toggle-btn" onclick="toggleEditForm()">Edit</button>
+          </div>
+          <form id="edit-metrics-form" style="display:none;" onsubmit="return submitMetrics(event)">
+            <div class="edit-grid">
+              <label>Monthly Revenue ($)<input type="number" id="em-revenue" step="any" required></label>
+              <label>Monthly Burn Rate ($)<input type="number" id="em-burn" step="any" min="0.01" required></label>
+              <label>Cash Balance ($)<input type="number" id="em-cash" step="any" required></label>
+              <label>MoM Growth Rate (%)<input type="number" id="em-growth" step="any" required></label>
+            </div>
+            <div class="edit-actions">
+              <button type="submit" class="ttb act">Save &amp; Recompute</button>
+              <button type="button" class="ttb" onclick="toggleEditForm(false)">Cancel</button>
+              <span id="edit-status" class="edit-status"></span>
+            </div>
+          </form>
         </div>
       </div>
 
@@ -998,6 +1031,64 @@ function renderNews(co){
       </div>
       <div class="news-meta">${escHtml(n.source_name||'')}</div>
     </div>`).join('');
+}
+
+// ── EDIT FINANCIALS ──
+// Lets you type in a new revenue/burn/cash/growth for the open company and
+// POSTs it to app.py's /api/companies/<id>/metrics, which writes a fresh
+// monthly_metrics row to database/mip.db and recomputes score/flag/runway
+// from it, same as a real monthly report would. Response is merged straight
+// into COS so the score circle, flag chip, runway, and trend chart update
+// immediately without a page reload.
+function toggleEditForm(show){
+  const form=document.getElementById('edit-metrics-form');
+  const btn=document.getElementById('edit-toggle-btn');
+  const willShow = show!==undefined ? show : form.style.display==='none';
+  form.style.display = willShow ? 'block' : 'none';
+  btn.textContent = willShow ? 'Close' : 'Edit';
+  const statusEl=document.getElementById('edit-status');
+  if(willShow) statusEl.textContent='';
+}
+
+async function submitMetrics(ev){
+  ev.preventDefault();
+  const statusEl=document.getElementById('edit-status');
+  const co=COS.find(c=>c.id===cCo);
+  if(!co) return false;
+
+  const revenue=parseFloat(document.getElementById('em-revenue').value);
+  const burn_rate=parseFloat(document.getElementById('em-burn').value);
+  const cash_balance=parseFloat(document.getElementById('em-cash').value);
+  const growthPct=parseFloat(document.getElementById('em-growth').value);
+  if([revenue,burn_rate,cash_balance,growthPct].some(v=>Number.isNaN(v))){
+    statusEl.textContent='All fields are required.'; statusEl.style.color='var(--risk)';
+    return false;
+  }
+  statusEl.textContent='Saving…'; statusEl.style.color='var(--ink3)';
+
+  try{
+    const resp=await fetch(`/api/companies/${co.id}/metrics`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({revenue,burn_rate,cash_balance,growth_rate:growthPct/100}),
+    });
+    const result=await resp.json();
+    if(!resp.ok){
+      statusEl.textContent=result.error||'Save failed.'; statusEl.style.color='var(--risk)';
+      return false;
+    }
+    co.flag=result.flag; co.flagLbl=result.flagLbl; co.score=result.score; co.why=result.why;
+    co.runwayMo=result.runwayMo; co.runway=result.runway;
+    // Illustrative trend arrays aren't real history, so slide the window and
+    // append the new score — the visuals move without faking a full series.
+    ['trend3m','trend2w','trend1y'].forEach(k=>{ co[k]=co[k].slice(1).concat(co.score); });
+
+    showDetail(co.id);
+    statusEl.textContent='Saved — score and flag updated.'; statusEl.style.color='var(--fo)';
+  }catch(err){
+    statusEl.textContent='Network error — is app.py running?'; statusEl.style.color='var(--risk)';
+  }
+  return false;
 }
 
 function renderTrend(data){
