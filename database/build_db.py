@@ -5,7 +5,7 @@ prints everything so you can see what got seeded.
 Run: python3 database/build_db.py
 """
 
-from db import DB_PATH, get_conn, init_db
+from db import DATABASE_URL, DB_PATH, get_conn, init_db
 from health_score import calculate_health_score, flag_from_score
 
 # The 6 real dashboard companies (dashboard/index.html), so this database and
@@ -104,11 +104,10 @@ def seed_company(conn, name, industry, founded_year, metrics):
     list of (report_date, revenue, burn_rate, cash_balance, growth_rate)
     tuples, oldest first. Returns the new company's id.
     """
-    cur = conn.execute(
-        "INSERT INTO companies (name, industry, founded_year) VALUES (?, ?, ?)",
+    company_id = conn.execute(
+        "INSERT INTO companies (name, industry, founded_year) VALUES (?, ?, ?) RETURNING id",
         (name, industry, founded_year),
-    )
-    company_id = cur.lastrowid
+    ).fetchone()[0]
 
     latest_metric_id = None
     latest_score = None
@@ -117,15 +116,14 @@ def seed_company(conn, name, industry, founded_year, metrics):
     for report_date, revenue, burn_rate, cash_balance, growth_rate in metrics:
         runway_months = cash_balance / burn_rate
 
-        cur = conn.execute(
+        metric_id = conn.execute(
             """INSERT INTO monthly_metrics
                (company_id, report_date, revenue, burn_rate, cash_balance,
                 runway_months, growth_rate)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id""",
             (company_id, report_date, revenue, burn_rate, cash_balance,
              runway_months, growth_rate),
-        )
-        metric_id = cur.lastrowid
+        ).fetchone()[0]
 
         # The one call that will change when the real formula lands.
         score = calculate_health_score(revenue, burn_rate, runway_months, growth_rate)
@@ -193,6 +191,14 @@ def print_seeded_data(conn):
 
 
 if __name__ == "__main__":
+    if DATABASE_URL:
+        raise SystemExit(
+            "DATABASE_URL is set (pointing at Postgres/Supabase) -- this script's "
+            "reset=True would only touch a local mip.db, not the real database, and "
+            "isn't safe to point at Postgres anyway (companies has no unique name "
+            "constraint, so re-running it there would duplicate every company). "
+            "Seed the real database once via database/seed_supabase.sql instead."
+        )
     init_db(reset=True)
     with get_conn() as connection:
         build_database(connection)

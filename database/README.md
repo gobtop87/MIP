@@ -33,25 +33,49 @@ that anchor by walking net burn (`burn_rate - revenue`) backwards.
 
 ## Going live on Supabase
 
-No Supabase project/credentials were available when this was built, so:
+**This is now implemented, not just planned.** `db.py` picks its backend at
+runtime from one environment variable:
 
-1. Run `schema_supabase.sql` in the Supabase SQL editor to create the tables.
-2. Run `python3 database/export_supabase_seed.py` to regenerate
-   `seed_supabase.sql` from the same `SEED_COMPANIES` data `build_db.py`
-   uses (keeps the two in sync — don't hand-edit `seed_supabase.sql`), then
-   run its contents in the SQL editor to load the 6 companies + their
-   monthly numbers.
-3. Point the code at Postgres instead of SQLite. All database access is now
-   funneled through `db.py` (see "Computing scores" below), so this is a
-   one-file change: rewrite `get_conn()`/`init_db()` there to open a Postgres
-   connection (e.g. `psycopg2.connect(os.environ["DATABASE_URL"])`) and
-   switch `?` placeholders to `%s`. The insert/query logic in every other
-   module stays as-is — the schema and the `db.py` boundary were both
-   designed to make that swap mechanical.
+- **`DATABASE_URL` unset** (the default for anyone running `./run.sh`
+  locally) → SQLite, `database/mip.db`. Zero config, exactly like before.
+- **`DATABASE_URL` set** to a Postgres connection string → every module
+  (`build_db.py`\*, `compute_score.py`, `fade_score.py`, `app.py`) reads and
+  writes that database instead, with no other code changes needed. This is
+  what makes a shared hosted deployment (see the repo root README's
+  "Deploying" section) actually persistent: the data lives in Supabase, not
+  on whatever machine happens to be running the web server, so it survives
+  restarts/redeploys and is the same for everyone who opens the dashboard.
 
-Until then, `schema.sql` + `build_db.py` stand up a local SQLite database
-(`mip.db`) with the same shape, and this repo (shared via git) is how the
-data is shared with the rest of the team in the meantime. Run it with:
+  \* `build_db.py` refuses to run at all when `DATABASE_URL` is set — its
+  `reset=True` wipe-and-reseed is a local-dev-only operation. Seed the real
+  database exactly once via `seed_supabase.sql` (below) instead.
+
+One-time setup, once you have a Supabase project:
+
+1. In the Supabase SQL editor, run `database/schema_supabase.sql` to create
+   the tables (this now includes the same `score_history` fade-dedup index
+   `schema.sql` has, so both schemas behave identically).
+2. Then run `database/seed_supabase.sql` in the same editor to load the 6
+   real companies + their monthly numbers (kept in sync with `build_db.py`'s
+   `SEED_COMPANIES` — regenerate it with `python3 database/export_supabase_seed.py`
+   if that data ever changes; don't hand-edit the generated file).
+3. From Project Settings → Database in Supabase, copy the connection string
+   and set it as `DATABASE_URL` (Render: an environment variable on the
+   service; local: `export DATABASE_URL=...` before running a script) to
+   point everything at it instead of SQLite.
+
+Tested end-to-end against a real Postgres instance while building this: schema
+creation, seeding, `compute_score.py`, `fade_score.py` (including that its
+same-day dedup still works), and the dashboard's KPI-editing endpoint all
+verified working identically to the SQLite path. Two real SQLite/Postgres
+differences turned up and got fixed as part of this: Postgres returns
+`NUMERIC` columns as Python `Decimal` (breaks `calculate_health_score()`'s
+float math) — schema now uses `DOUBLE PRECISION` instead — and returns `DATE`
+columns as `datetime.date` objects rather than SQLite's plain text
+(`fade_score.py` now handles both).
+
+Without `DATABASE_URL` set, `schema.sql` + `build_db.py` stand up the local
+SQLite database (`mip.db`) with the same shape, same as always. Run it with:
 
 ```
 python3 database/build_db.py

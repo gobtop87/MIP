@@ -86,9 +86,14 @@ def run_fade_job(conn, as_of_date=None):
     ).fetchall()
 
     results = []
-    for (company_id, metric_id, base_score, report_date_str,
+    for (company_id, metric_id, base_score, report_date_val,
          revenue, burn_rate, runway_months, growth_rate) in rows:
-        report_date = datetime.strptime(report_date_str, "%Y-%m-%d").date()
+        # SQLite stores DATE as text and hands back a str; Postgres hands
+        # back an actual datetime.date already.
+        report_date = (
+            report_date_val if isinstance(report_date_val, date)
+            else datetime.strptime(report_date_val, "%Y-%m-%d").date()
+        )
         days_since_report = (as_of_date - report_date).days
         faded_score = calculate_faded_score(base_score, report_date, as_of_date)
         faded_flag = flag_from_faded_score(faded_score)
@@ -112,7 +117,7 @@ def run_fade_job(conn, as_of_date=None):
                              flag = excluded.flag,
                              metric_id = excluded.metric_id,
                              reason = excluded.reason,
-                             computed_at = datetime('now')""",
+                             computed_at = CURRENT_TIMESTAMP""",
             (company_id, metric_id, faded_score, faded_flag, as_of_date.isoformat(), reason),
         )
 

@@ -23,11 +23,11 @@ CREATE TABLE monthly_metrics (
     id             BIGSERIAL PRIMARY KEY,
     company_id     BIGINT NOT NULL REFERENCES companies(id),
     report_date    DATE NOT NULL,
-    revenue        NUMERIC NOT NULL,
-    burn_rate      NUMERIC NOT NULL,
-    cash_balance   NUMERIC NOT NULL,
-    runway_months  NUMERIC NOT NULL,
-    growth_rate    NUMERIC NOT NULL,
+    revenue        DOUBLE PRECISION NOT NULL,
+    burn_rate      DOUBLE PRECISION NOT NULL,
+    cash_balance   DOUBLE PRECISION NOT NULL,
+    runway_months  DOUBLE PRECISION NOT NULL,
+    growth_rate    DOUBLE PRECISION NOT NULL,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE(company_id, report_date)
 );
@@ -36,23 +36,34 @@ CREATE TABLE scores (
     id          BIGSERIAL PRIMARY KEY,
     company_id  BIGINT NOT NULL UNIQUE REFERENCES companies(id),
     metric_id   BIGINT NOT NULL REFERENCES monthly_metrics(id),
-    score       NUMERIC NOT NULL,
+    score       DOUBLE PRECISION NOT NULL,
     flag        TEXT NOT NULL,
     computed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- source: 'report' = a real monthly_metrics report (compute_score.py) --
+--                      always appends, one row per calculation, never
+--                      deduped or overwritten.
+--         'fade'    = the daily fade job (fade_score.py) -- deduped to one
+--                      row per company per day by the partial unique index
+--                      below, so reruns on the same day update that day's
+--                      row instead of stacking a penalty.
 CREATE TABLE score_history (
     id          BIGSERIAL PRIMARY KEY,
     company_id  BIGINT NOT NULL REFERENCES companies(id),
     metric_id   BIGINT NOT NULL REFERENCES monthly_metrics(id),
-    score       NUMERIC NOT NULL,
+    score       DOUBLE PRECISION NOT NULL,
     flag        TEXT NOT NULL,
     source      TEXT NOT NULL DEFAULT 'report',
     as_of_date  DATE NOT NULL,
     reason      TEXT,
-    computed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE(company_id, as_of_date, source)
+    computed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Only 'fade' rows dedup by day; 'report' rows are always append-only.
+CREATE UNIQUE INDEX score_history_fade_daily
+    ON score_history(company_id, as_of_date)
+    WHERE source = 'fade';
 
 CREATE TABLE flag_history (
     id          BIGSERIAL PRIMARY KEY,
