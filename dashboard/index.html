@@ -167,8 +167,8 @@ html.dark .co-card:hover{box-shadow:0 4px 18px rgba(0,0,0,0.35);}
 .flag-chip{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;
   padding:2px 8px;border-radius:10px;border:1px solid;}
 .flag-chip.risk{background:var(--risk-bg);color:var(--risk);border-color:var(--risk-border);}
-.flag-chip.followon{background:var(--fo-bg);color:var(--fo);border-color:var(--fo-border);}
-.flag-chip.ontrack{background:var(--ot-bg);color:var(--ot);border-color:var(--ot-border);}
+.flag-chip.follow_on{background:var(--fo-bg);color:var(--fo);border-color:var(--fo-border);}
+.flag-chip.on_track{background:var(--ot-bg);color:var(--ot);border-color:var(--ot-border);}
 .sector-chip{font-size:9px;font-weight:500;background:var(--gold-faint);color:var(--gold);
   border:1px solid var(--gold-mid);border-radius:5px;padding:2px 7px;text-transform:uppercase;letter-spacing:.07em;}
 .card-meta{display:flex;align-items:center;gap:14px;font-size:11px;color:var(--ink3);flex-wrap:wrap;}
@@ -418,8 +418,8 @@ html.dark .tog-rail{background:rgba(255,255,255,0.15);}
       <div class="filter-row">
         <button class="fbtn act" onclick="setFilter('all',this)">All Companies <span class="fcount" id="fc-all">6</span></button>
         <button class="fbtn risk-f" onclick="setFilter('risk',this)">Risk <span class="fcount" id="fc-risk">2</span></button>
-        <button class="fbtn fo-f" onclick="setFilter('followon',this)">Follow-On <span class="fcount" id="fc-fo">2</span></button>
-        <button class="fbtn ot-f" onclick="setFilter('ontrack',this)">On Track <span class="fcount" id="fc-ot">2</span></button>
+        <button class="fbtn fo-f" onclick="setFilter('follow_on',this)">Follow-On <span class="fcount" id="fc-fo">2</span></button>
+        <button class="fbtn ot-f" onclick="setFilter('on_track',this)">On Track <span class="fcount" id="fc-ot">2</span></button>
       </div>
 
       <div class="filter-label" style="margin-top:16px;">Sector</div>
@@ -672,7 +672,7 @@ const COS=[
   },
   {
     id:'pathwise',name:'PathWise',sector:'ai',sectorLbl:'AI',
-    flag:'followon',flagLbl:'Follow-On',
+    flag:'follow_on',flagLbl:'Follow-On',
     invested:'Sep 2023',runway:'19 mo',runwayMo:19,score:78,perfNum:22,perfDisp:'+22%',perfCls:'pos',
     why:'<b>Why Follow-On:</b> ARR 22% above plan, NRR at 128%, gross margin ahead of target. Series B process starting Q4 — evaluating pro-rata allocation on $18M round.',
     kpis:[
@@ -701,7 +701,7 @@ const COS=[
   },
   {
     id:'solarvault',name:'SolarVault',sector:'ai',sectorLbl:'AI',
-    flag:'followon',flagLbl:'Follow-On',
+    flag:'follow_on',flagLbl:'Follow-On',
     invested:'Jan 2024',runway:'15 mo',runwayMo:15,score:71,perfNum:9,perfDisp:'+9%',perfCls:'pos',
     why:'<b>Why Follow-On:</b> ARR and churn both ahead of plan. Board considering $2.5M follow-on tranche to accelerate enterprise GTM. Decision at July board meeting.',
     kpis:[
@@ -730,7 +730,7 @@ const COS=[
   },
   {
     id:'cognify',name:'Cognify Health',sector:'health',sectorLbl:'Healthcare',
-    flag:'ontrack',flagLbl:'On Track',
+    flag:'on_track',flagLbl:'On Track',
     invested:'Nov 2022',runway:'22 mo',runwayMo:22,score:83,perfNum:14,perfDisp:'+14%',perfCls:'pos',
     why:'<b>Status:</b> All KPIs above plan. Hospital count at 16 vs 15 target. Series C exploration beginning H2 2026.',
     kpis:[
@@ -757,7 +757,7 @@ const COS=[
   },
   {
     id:'vaultnet',name:'VaultNet',sector:'cyber',sectorLbl:'Cybersecurity',
-    flag:'ontrack',flagLbl:'On Track',
+    flag:'on_track',flagLbl:'On Track',
     invested:'May 2023',runway:'18 mo',runwayMo:18,score:69,perfNum:6,perfDisp:'+6%',perfCls:'pos',
     why:'<b>Status:</b> ARR and churn both ahead of plan. Enterprise logo count slightly behind but late-stage pipeline covers the gap.',
     kpis:[
@@ -784,7 +784,7 @@ const COS=[
   }
 ];
 
-const flagOrder={risk:0,followon:1,ontrack:2};
+const flagOrder={risk:0,follow_on:1,on_track:2};
 let cFilter='all',cSector='all',cSort='risk-top',cCo=null,cTime='3m';
 let trendInst=null;
 const dCharts={};
@@ -811,7 +811,7 @@ function textClr(){return isDark()?'#a09880':'#3d3d3d';}
 function gridClr(){return isDark()?'rgba(201,150,42,0.07)':'rgba(0,0,0,0.05)';}
 function flagColor(flag,alpha){
   if(flag==='risk') return `rgba(192,57,43,${alpha})`;
-  if(flag==='followon') return `rgba(26,122,69,${alpha})`;
+  if(flag==='follow_on') return `rgba(26,122,69,${alpha})`;
   return `rgba(26,78,138,${alpha})`;
 }
 
@@ -933,8 +933,8 @@ function rebuildDashCharts(){
 
   if(dCharts.dn) dCharts.dn.destroy();
   const rc=COS.filter(c=>c.flag==='risk').length;
-  const fc=COS.filter(c=>c.flag==='followon').length;
-  const oc=COS.filter(c=>c.flag==='ontrack').length;
+  const fc=COS.filter(c=>c.flag==='follow_on').length;
+  const oc=COS.filter(c=>c.flag==='on_track').length;
   dCharts.dn=new Chart(document.getElementById('ch-donut'),{
     type:'doughnut',
     data:{labels:['Risk','Follow-On','On Track'],
