@@ -40,7 +40,7 @@ either):
    repo root and fills in the build/start commands automatically. (If the
    Blueprint option doesn't pick it up, create a Web Service manually instead:
    Runtime `Python 3`, Build Command
-   `pip install -r requirements.txt && python3 -m news_watch.seed_demo_data && (python3 -m news_watch.fetch_news || true) && python3 -m alerts.generate_alerts && python3 database/fade_score.py`,
+   `pip install -r requirements.txt && python3 -m news_watch.seed_demo_data && (python3 -m news_watch.fetch_news || true) && python3 -m alerts.generate_alerts && (python3 database/fade_score.py || true)`,
    Start Command `gunicorn app:app --bind 0.0.0.0:$PORT`, Plan `Free`.)
 3. In the service's Environment settings, add `DATABASE_URL` = the Supabase
    connection string from step 1.3.
