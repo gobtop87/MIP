@@ -37,7 +37,7 @@ def get_summary():
 def get_news_items(company_id=None, limit=300):
     query = """
         SELECT company_id, source, source_name, headline, url, published_at,
-               matched_term, is_competitor_mention, fetched_at
+               matched_term, is_competitor_mention, fetched_at, snippet
         FROM news_items
     """
     params = ()
@@ -64,6 +64,7 @@ def get_news_items(company_id=None, limit=300):
                 "matched_term": r[6],
                 "is_competitor_mention": bool(r[7]),
                 "fetched_at": r[8],
+                "snippet": r[9],
             }
         )
     return items
