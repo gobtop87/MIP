@@ -15,6 +15,7 @@ from flask import Flask, render_template, request
 
 from news_watch import db
 from news_watch.config import COMPANIES
+from news_watch.source_credibility import get_credibility
 
 app = Flask(__name__, template_folder="templates")
 
@@ -37,7 +38,7 @@ def get_summary():
 def get_news_items(company_id=None, limit=300):
     query = """
         SELECT company_id, source, source_name, headline, url, published_at,
-               matched_term, is_competitor_mention, fetched_at
+               matched_term, is_competitor_mention, fetched_at, snippet, author
         FROM news_items
     """
     params = ()
@@ -64,6 +65,9 @@ def get_news_items(company_id=None, limit=300):
                 "matched_term": r[6],
                 "is_competitor_mention": bool(r[7]),
                 "fetched_at": r[8],
+                "snippet": r[9],
+                "author": r[10],
+                "credibility": get_credibility(r[1], r[2]),
             }
         )
     return items

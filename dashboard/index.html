@@ -197,6 +197,19 @@ html.dark .co-card:hover{box-shadow:0 4px 18px rgba(0,0,0,0.35);}
 .news-badge.competitor{background:var(--ot-bg);color:var(--ot);border:1px solid var(--ot-border);}
 .news-badge.keyword{background:var(--panel2);color:var(--ink3);border:1px solid var(--divider);}
 .news-empty{color:var(--ink3);font-size:12px;padding:24px 0;text-align:center;}
+.src-toggle{background:none;border:none;padding:0;margin:0;font:inherit;font-size:12px;color:var(--ink2);
+  cursor:pointer;display:inline-flex;align-items:center;gap:5px;}
+.src-toggle:hover{color:var(--gold);}
+.src-toggle-chevron{color:var(--ink3);font-size:9px;width:8px;display:inline-block;}
+.news-tbl tr:nth-last-child(2) td{border-bottom:none;}
+.src-detail-row td{border-bottom:1px solid var(--divider);padding:0 0 10px;}
+.src-detail{background:var(--panel2);border-left:3px solid var(--gold);border-radius:0 7px 7px 0;
+  padding:12px 16px;font-size:12px;color:var(--ink2);line-height:1.6;}
+.src-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;
+  margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--divider);}
+.src-field-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:4px;}
+.src-field-val{font-size:12px;color:var(--ink);}
+.src-summary-text{font-size:12px;color:var(--ink2);line-height:1.6;}
 
 .detail-back{display:flex;align-items:center;gap:10px;margin-bottom:22px;}
 .back-btn{background:var(--panel);border:1px solid var(--divider);border-radius:7px;
@@ -1301,15 +1314,41 @@ function renderNewsTable(items){
     tbody.innerHTML='<tr><td colspan="6" class="news-empty">No matched news items yet. Run <code>news_watch.fetch_news</code> (or <code>news_watch.seed_demo_data</code> for a demo) to populate this.</td></tr>';
     return;
   }
-  tbody.innerHTML=items.map(i=>`
+  tbody.innerHTML=items.map((i,idx)=>`
     <tr>
       <td>${escHtml(i.company_name)}</td>
-      <td>${escHtml(i.source_name||i.source)}</td>
+      <td>
+        <button type="button" class="src-toggle" id="src-toggle-${idx}" onclick="toggleSourceInfo(${idx})" aria-expanded="false">
+          <span class="src-toggle-chevron">▸</span> ${escHtml(i.source_name||i.source)}
+        </button>
+      </td>
       <td><a href="${safeHref(i.url)}" target="_blank" rel="noopener noreferrer">${escHtml(i.headline)}</a></td>
       <td>${escHtml(i.matched_term)}</td>
       <td><span class="news-badge ${i.is_competitor_mention?'competitor':'keyword'}">${i.is_competitor_mention?'Competitor':'Keyword'}</span></td>
       <td style="color:var(--ink3)">${escHtml(i.published_at)}</td>
+    </tr>
+    <tr class="src-detail-row" id="src-detail-${idx}" style="display:none;">
+      <td colspan="6"><div class="src-detail">
+        <div class="src-detail-grid">
+          <div class="src-field"><div class="src-field-lbl">Source Title</div><div class="src-field-val">${escHtml(i.headline)}</div></div>
+          <div class="src-field"><div class="src-field-lbl">Source Author</div><div class="src-field-val">${escHtml(i.author)||'Not attributed'}</div></div>
+          <div class="src-field"><div class="src-field-lbl">Source Organization</div><div class="src-field-val">${escHtml(i.source_name||i.source)}</div></div>
+          <div class="src-field"><div class="src-field-lbl">Date Published</div><div class="src-field-val">${escHtml(i.published_at)||'Unknown'}</div></div>
+          <div class="src-field"><div class="src-field-lbl">Level of Credibility</div><div class="src-field-val">${escHtml(i.credibility)||'Unverified'}</div></div>
+        </div>
+        <div class="src-field-lbl">Source Summary</div>
+        <div class="src-summary-text">${escHtml(i.snippet)||'No summary available for this source.'}</div>
+      </div></td>
     </tr>`).join('');
+}
+
+function toggleSourceInfo(idx){
+  const row=document.getElementById(`src-detail-${idx}`);
+  const btn=document.getElementById(`src-toggle-${idx}`);
+  const open=row.style.display!=='none';
+  row.style.display=open?'none':'table-row';
+  btn.setAttribute('aria-expanded',String(!open));
+  btn.querySelector('.src-toggle-chevron').textContent=open?'▸':'▾';
 }
 
 // ── INIT ──

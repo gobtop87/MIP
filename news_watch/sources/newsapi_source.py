@@ -36,6 +36,7 @@ def fetch_newsapi_articles(query, page_size=5):
         articles.append(
             {
                 "source_name": a.get("source", {}).get("name", "NewsAPI"),
+                "author": a.get("author") or None,
                 "headline": a.get("title", ""),
                 "url": a.get("url", ""),
                 "published_at": a.get("publishedAt", ""),
