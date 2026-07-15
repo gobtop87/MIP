@@ -204,7 +204,12 @@ html.dark .co-card:hover{box-shadow:0 4px 18px rgba(0,0,0,0.35);}
 .news-tbl tr:nth-last-child(2) td{border-bottom:none;}
 .src-detail-row td{border-bottom:1px solid var(--divider);padding:0 0 10px;}
 .src-detail{background:var(--panel2);border-left:3px solid var(--gold);border-radius:0 7px 7px 0;
-  padding:10px 14px;font-size:12px;color:var(--ink2);line-height:1.6;}
+  padding:12px 16px;font-size:12px;color:var(--ink2);line-height:1.6;}
+.src-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;
+  margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--divider);}
+.src-field-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:4px;}
+.src-field-val{font-size:12px;color:var(--ink);}
+.src-summary-text{font-size:12px;color:var(--ink2);line-height:1.6;}
 
 .detail-back{display:flex;align-items:center;gap:10px;margin-bottom:22px;}
 .back-btn{background:var(--panel);border:1px solid var(--divider);border-radius:7px;
@@ -1323,7 +1328,17 @@ function renderNewsTable(items){
       <td style="color:var(--ink3)">${escHtml(i.published_at)}</td>
     </tr>
     <tr class="src-detail-row" id="src-detail-${idx}" style="display:none;">
-      <td colspan="6"><div class="src-detail">${escHtml(i.snippet)||'No summary available for this source.'}</div></td>
+      <td colspan="6"><div class="src-detail">
+        <div class="src-detail-grid">
+          <div class="src-field"><div class="src-field-lbl">Source Title</div><div class="src-field-val">${escHtml(i.headline)}</div></div>
+          <div class="src-field"><div class="src-field-lbl">Source Author</div><div class="src-field-val">${escHtml(i.author)||'Not attributed'}</div></div>
+          <div class="src-field"><div class="src-field-lbl">Source Organization</div><div class="src-field-val">${escHtml(i.source_name||i.source)}</div></div>
+          <div class="src-field"><div class="src-field-lbl">Date Published</div><div class="src-field-val">${escHtml(i.published_at)||'Unknown'}</div></div>
+          <div class="src-field"><div class="src-field-lbl">Level of Credibility</div><div class="src-field-val">${escHtml(i.credibility)||'Unverified'}</div></div>
+        </div>
+        <div class="src-field-lbl">Source Summary</div>
+        <div class="src-summary-text">${escHtml(i.snippet)||'No summary available for this source.'}</div>
+      </div></td>
     </tr>`).join('');
 }
 

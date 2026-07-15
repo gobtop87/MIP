@@ -19,6 +19,7 @@ def fetch_rss_articles():
             articles.append(
                 {
                     "source_name": source_name,
+                    "author": entry.get("author") or None,
                     "headline": entry.get("title", ""),
                     "url": entry.get("link", ""),
                     "published_at": entry.get("published", entry.get("updated", "")),

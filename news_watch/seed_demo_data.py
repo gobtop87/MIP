@@ -73,6 +73,7 @@ def run():
                 "company_id": company_id,
                 "source": source,
                 "source_name": source_name,
+                "author": None if source == "sec_edgar" else f"{source_name} Staff",
                 "headline": headline,
                 "url": f"https://example.com/demo-article-{i}",
                 "published_at": published.strftime("%Y-%m-%d %H:%M"),

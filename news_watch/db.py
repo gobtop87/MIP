@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS news_items (
     company_id TEXT NOT NULL REFERENCES companies(id),
     source TEXT NOT NULL,        -- newsapi | sec_edgar | rss
     source_name TEXT,            -- e.g. "TechCrunch", "SEC EDGAR"
+    author TEXT,                 -- byline, when the fetcher can determine one
     headline TEXT NOT NULL,
     url TEXT NOT NULL,
     published_at TEXT,
@@ -52,6 +53,10 @@ def get_conn():
 def init_db():
     with get_conn() as conn:
         conn.executescript(SCHEMA)
+        try:
+            conn.execute("ALTER TABLE news_items ADD COLUMN author TEXT")
+        except sqlite3.OperationalError:
+            pass  # already migrated
 
 
 def upsert_companies(companies):
@@ -85,14 +90,15 @@ def insert_news_item(item):
         cur = conn.execute(
             """
             INSERT OR IGNORE INTO news_items
-                (company_id, source, source_name, headline, url, published_at,
+                (company_id, source, source_name, author, headline, url, published_at,
                  matched_term, is_competitor_mention, snippet)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 item["company_id"],
                 item["source"],
                 item.get("source_name"),
+                item.get("author"),
                 item["headline"],
                 item["url"],
                 item.get("published_at"),
