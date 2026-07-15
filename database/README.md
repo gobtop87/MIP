@@ -97,6 +97,43 @@ Their numbers are made up but realistic, and deliberately span the
 risk/watch/on_track buckets. Safe to re-run — it deletes and reseeds any
 existing `TestCo *` rows each time rather than duplicating them.
 
+## Editing KPIs from the dashboard (with undo)
+
+Besides the CSV import path below, the dashboard itself has a live editor:
+open any company's detail page → **Update Financials** → enter revenue/burn/
+cash/growth → **Save & Recompute**. This goes through `app.py`'s
+`POST /api/companies/<id>/metrics`, which runs the same
+monthly_metrics → score → flag pipeline as a real report (see "Computing
+scores" below), so the result is identical either way.
+
+Every edit is also logged to a new `kpi_edits` table — a pure append-only
+log, separate from `monthly_metrics` (which only keeps one row per company
+per *day*), so nothing is lost even if several edits happen in the same
+sitting. The **Edit History** list under the form shows past edits with a
+**Restore** button on each one; clicking it re-applies that entry's exact
+numbers as a brand-new edit through the same pipeline, undoing a mis-typed
+number without deleting anything from the log. `GET /api/companies/<id>/edits`
+lists them, `POST /api/companies/<id>/edits/<edit_id>/restore` does the undo.
+
+**If you already have a Supabase project set up from before this feature was
+added**, `kpi_edits` won't exist there yet — re-running the full
+`schema_supabase.sql` would fail since the other tables already exist. Just
+run this once in the Supabase SQL editor instead:
+
+```sql
+CREATE TABLE kpi_edits (
+    id           BIGSERIAL PRIMARY KEY,
+    company_id   BIGINT NOT NULL REFERENCES companies(id),
+    revenue      DOUBLE PRECISION NOT NULL,
+    burn_rate    DOUBLE PRECISION NOT NULL,
+    cash_balance DOUBLE PRECISION NOT NULL,
+    growth_rate  DOUBLE PRECISION NOT NULL,
+    score        DOUBLE PRECISION NOT NULL,
+    flag         TEXT NOT NULL,
+    edited_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
 ## Entering new monthly numbers
 
 Decided on the simplest option per the assignment: **a CSV you fill in and
