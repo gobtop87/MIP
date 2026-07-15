@@ -104,3 +104,23 @@ CREATE TABLE flag_history (
     as_of_date  TEXT NOT NULL,       -- YYYY-MM-DD the change was detected on
     changed_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Append-only log of every manual KPI edit made through the dashboard's
+-- "Update Financials" form (app.py's /api/companies/<id>/metrics). Separate
+-- from monthly_metrics, which upserts one row per company per *day* -- this
+-- instead keeps every single edit, even several in the same day, so a
+-- mis-typed number can be undone by restoring an earlier row here (see
+-- /api/companies/<id>/edits and .../edits/<edit_id>/restore). "Restoring" an
+-- entry re-applies its numbers as a brand-new edit rather than deleting
+-- anything after it, so this table is a pure undo stack, never rewritten.
+CREATE TABLE kpi_edits (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id   INTEGER NOT NULL REFERENCES companies(id),
+    revenue      REAL NOT NULL,
+    burn_rate    REAL NOT NULL,
+    cash_balance REAL NOT NULL,
+    growth_rate  REAL NOT NULL,
+    score        REAL NOT NULL,     -- company-level score at this edit, for display
+    flag         TEXT NOT NULL,     -- company-level flag ('risk'|'on_track'|'follow_on') at this edit
+    edited_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);

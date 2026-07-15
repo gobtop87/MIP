@@ -156,6 +156,105 @@ def _get_or_create_company(conn, name, industry):
     ).fetchone()[0]
 
 
+def _apply_metrics(conn, company_id, company_row_id, revenue, burn_rate, cash_balance, growth_rate):
+    """
+    Core of a KPI edit, shared by a direct edit and a restore-from-history:
+    write a monthly_metrics report, recompute score/flag from it, log it to
+    kpi_edits (append-only, so it can itself be restored later), and update
+    the company's overall flag. Returns the same shape either caller sends
+    back to the dashboard.
+    """
+    runway_months = cash_balance / burn_rate
+    today = date.today().isoformat()
+
+    conn.execute(
+        """INSERT INTO monthly_metrics
+           (company_id, report_date, revenue, burn_rate, cash_balance, runway_months, growth_rate)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(company_id, report_date) DO UPDATE SET
+               revenue = excluded.revenue,
+               burn_rate = excluded.burn_rate,
+               cash_balance = excluded.cash_balance,
+               runway_months = excluded.runway_months,
+               growth_rate = excluded.growth_rate""",
+        (company_row_id, today, revenue, burn_rate, cash_balance, runway_months, growth_rate),
+    )
+    metric_id = conn.execute(
+        "SELECT id FROM monthly_metrics WHERE company_id = ? AND report_date = ?",
+        (company_row_id, today),
+    ).fetchone()[0]
+
+    # health_score.py's own on_track/watch/at_risk vocabulary — stored only
+    # on scores/score_history, separate from the company-level
+    # risk/on_track/follow_on flag below (see database/README.md).
+    score = calculate_health_score(revenue, burn_rate, runway_months, growth_rate)
+    report_flag = flag_from_score(score)
+
+    conn.execute(
+        """INSERT INTO scores (company_id, metric_id, score, flag)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(company_id) DO UPDATE SET
+               metric_id = excluded.metric_id,
+               score = excluded.score,
+               flag = excluded.flag,
+               computed_at = CURRENT_TIMESTAMP""",
+        (company_row_id, metric_id, score, report_flag),
+    )
+    conn.execute(
+        """INSERT INTO score_history (company_id, metric_id, score, flag, source, as_of_date)
+           VALUES (?, ?, ?, ?, 'report', ?)""",
+        (company_row_id, metric_id, score, report_flag, today),
+    )
+
+    # A brand-new report is 0 days old, so fade_score.py's grace period means
+    # no fade penalty applies — the company-level flag is just this score
+    # run through the same thresholds the daily fade job uses.
+    company_flag = _company_flag_from_score(score)
+    reason = generate_flag_reason(
+        company_flag, False, 0, revenue, burn_rate, runway_months, growth_rate
+    )
+    old_flag = conn.execute(
+        "SELECT flag FROM companies WHERE id = ?", (company_row_id,)
+    ).fetchone()[0]
+    if old_flag != company_flag:
+        conn.execute(
+            """INSERT INTO flag_history (company_id, old_flag, new_flag, reason, as_of_date)
+               VALUES (?, ?, ?, ?, ?)""",
+            (company_row_id, old_flag, company_flag, reason, today),
+        )
+    conn.execute(
+        "UPDATE companies SET flag = ?, flag_reason = ? WHERE id = ?",
+        (company_flag, reason, company_row_id),
+    )
+
+    # Logged *after* the flag is known, so every entry doubles as a restore
+    # point: undoing a bad edit is just re-applying an earlier row's numbers
+    # through this same function, which appends yet another entry rather
+    # than deleting anything -- a pure undo stack, same pattern score_history
+    # already uses.
+    conn.execute(
+        """INSERT INTO kpi_edits (company_id, revenue, burn_rate, cash_balance, growth_rate, score, flag)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (company_row_id, revenue, burn_rate, cash_balance, growth_rate, score, company_flag),
+    )
+
+    runway_mo = round(runway_months, 1)
+    return {
+        "id": company_id,
+        "score": round(score),
+        "flag": company_flag,
+        "flagLbl": FLAG_LABELS.get(company_flag, company_flag),
+        "why": f"<b>Why flagged:</b> {reason}",
+        "runwayMo": runway_mo,
+        "runway": f"{runway_mo:g} mo",
+    }
+
+
+def _ensure_mip_db():
+    if not MIP_DATABASE_URL and not MIP_DB_PATH.exists():
+        init_mip_db()
+
+
 @app.route("/api/companies/<company_id>/metrics", methods=["POST"])
 def update_company_metrics(company_id):
     """
@@ -178,87 +277,71 @@ def update_company_metrics(company_id):
     if burn_rate <= 0:
         return jsonify({"error": "burn_rate must be greater than 0"}), 400
 
-    runway_months = cash_balance / burn_rate
-    today = date.today().isoformat()
-
-    if not MIP_DATABASE_URL and not MIP_DB_PATH.exists():
-        init_mip_db()
-
+    _ensure_mip_db()
     with get_mip_conn() as conn:
         company_row_id = _get_or_create_company(conn, company["name"], company.get("sector"))
+        result = _apply_metrics(conn, company_id, company_row_id, revenue, burn_rate, cash_balance, growth_rate)
+    return jsonify(result)
 
-        conn.execute(
-            """INSERT INTO monthly_metrics
-               (company_id, report_date, revenue, burn_rate, cash_balance, runway_months, growth_rate)
-               VALUES (?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(company_id, report_date) DO UPDATE SET
-                   revenue = excluded.revenue,
-                   burn_rate = excluded.burn_rate,
-                   cash_balance = excluded.cash_balance,
-                   runway_months = excluded.runway_months,
-                   growth_rate = excluded.growth_rate""",
-            (company_row_id, today, revenue, burn_rate, cash_balance, runway_months, growth_rate),
-        )
-        metric_id = conn.execute(
-            "SELECT id FROM monthly_metrics WHERE company_id = ? AND report_date = ?",
-            (company_row_id, today),
-        ).fetchone()[0]
 
-        # health_score.py's own on_track/watch/at_risk vocabulary — stored
-        # only on scores/score_history, separate from the company-level
-        # risk/on_track/follow_on flag below (see database/README.md).
-        score = calculate_health_score(revenue, burn_rate, runway_months, growth_rate)
-        report_flag = flag_from_score(score)
+@app.route("/api/companies/<company_id>/edits")
+def list_company_edits(company_id):
+    """Recent KPI edits for a company (most recent first), for the dashboard's
+    edit-history list and its "Restore" buttons."""
+    company = COMPANIES_BY_ID.get(company_id)
+    if not company:
+        return jsonify({"error": f"Unknown company id '{company_id}'"}), 404
 
-        conn.execute(
-            """INSERT INTO scores (company_id, metric_id, score, flag)
-               VALUES (?, ?, ?, ?)
-               ON CONFLICT(company_id) DO UPDATE SET
-                   metric_id = excluded.metric_id,
-                   score = excluded.score,
-                   flag = excluded.flag,
-                   computed_at = CURRENT_TIMESTAMP""",
-            (company_row_id, metric_id, score, report_flag),
-        )
-        conn.execute(
-            """INSERT INTO score_history (company_id, metric_id, score, flag, source, as_of_date)
-               VALUES (?, ?, ?, ?, 'report', ?)""",
-            (company_row_id, metric_id, score, report_flag, today),
-        )
-
-        # A brand-new report is 0 days old, so fade_score.py's grace period
-        # means no fade penalty applies — the company-level flag is just
-        # this score run through the same thresholds the daily fade job uses.
-        company_flag = _company_flag_from_score(score)
-        reason = generate_flag_reason(
-            company_flag, False, 0, revenue, burn_rate, runway_months, growth_rate
-        )
-        old_flag = conn.execute(
-            "SELECT flag FROM companies WHERE id = ?", (company_row_id,)
-        ).fetchone()[0]
-        if old_flag != company_flag:
-            conn.execute(
-                """INSERT INTO flag_history (company_id, old_flag, new_flag, reason, as_of_date)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (company_row_id, old_flag, company_flag, reason, today),
-            )
-        conn.execute(
-            "UPDATE companies SET flag = ?, flag_reason = ? WHERE id = ?",
-            (company_flag, reason, company_row_id),
-        )
-
-    runway_mo = round(runway_months, 1)
+    _ensure_mip_db()
+    with get_mip_conn() as conn:
+        row = conn.execute("SELECT id FROM companies WHERE name = ?", (company["name"],)).fetchone()
+        if not row:
+            return jsonify([])
+        rows = conn.execute(
+            """SELECT id, revenue, burn_rate, cash_balance, growth_rate, score, flag, edited_at
+               FROM kpi_edits WHERE company_id = ? ORDER BY id DESC LIMIT 20""",
+            (row[0],),
+        ).fetchall()
     return jsonify(
-        {
-            "id": company_id,
-            "score": round(score),
-            "flag": company_flag,
-            "flagLbl": FLAG_LABELS.get(company_flag, company_flag),
-            "why": f"<b>Why flagged:</b> {reason}",
-            "runwayMo": runway_mo,
-            "runway": f"{runway_mo:g} mo",
-        }
+        [
+            {
+                "id": r[0],
+                "revenue": r[1],
+                "burn_rate": r[2],
+                "cash_balance": r[3],
+                "growth_rate": r[4],
+                "score": round(r[5]),
+                "flag": r[6],
+                "flagLbl": FLAG_LABELS.get(r[6], r[6]),
+                "edited_at": r[7],
+            }
+            for r in rows
+        ]
     )
+
+
+@app.route("/api/companies/<company_id>/edits/<int:edit_id>/restore", methods=["POST"])
+def restore_company_edit(company_id, edit_id):
+    """Re-apply a past kpi_edits entry's numbers as a brand-new edit, so a
+    mis-typed KPI can be undone. Doesn't delete anything -- the restore
+    itself becomes the newest entry in the same history list."""
+    company = COMPANIES_BY_ID.get(company_id)
+    if not company:
+        return jsonify({"error": f"Unknown company id '{company_id}'"}), 404
+
+    _ensure_mip_db()
+    with get_mip_conn() as conn:
+        company_row_id = _get_or_create_company(conn, company["name"], company.get("sector"))
+        edit = conn.execute(
+            """SELECT revenue, burn_rate, cash_balance, growth_rate
+               FROM kpi_edits WHERE id = ? AND company_id = ?""",
+            (edit_id, company_row_id),
+        ).fetchone()
+        if not edit:
+            return jsonify({"error": f"No edit {edit_id} found for this company"}), 404
+        revenue, burn_rate, cash_balance, growth_rate = edit
+        result = _apply_metrics(conn, company_id, company_row_id, revenue, burn_rate, cash_balance, growth_rate)
+    return jsonify(result)
 
 
 @app.route("/api/news")

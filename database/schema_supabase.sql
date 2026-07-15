@@ -74,3 +74,18 @@ CREATE TABLE flag_history (
     as_of_date  DATE NOT NULL,
     changed_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Append-only log of every manual KPI edit made through the dashboard --
+-- see database/schema.sql for the full explanation. "Restoring" an entry
+-- re-applies its numbers as a new edit rather than deleting anything.
+CREATE TABLE kpi_edits (
+    id           BIGSERIAL PRIMARY KEY,
+    company_id   BIGINT NOT NULL REFERENCES companies(id),
+    revenue      DOUBLE PRECISION NOT NULL,
+    burn_rate    DOUBLE PRECISION NOT NULL,
+    cash_balance DOUBLE PRECISION NOT NULL,
+    growth_rate  DOUBLE PRECISION NOT NULL,
+    score        DOUBLE PRECISION NOT NULL,
+    flag         TEXT NOT NULL,
+    edited_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);

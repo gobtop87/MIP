@@ -322,6 +322,16 @@ html.dark .co-card:hover{box-shadow:0 4px 18px rgba(0,0,0,0.35);}
 .edit-actions{margin-top:12px;display:flex;gap:8px;align-items:center;}
 .edit-status{font-size:11px;}
 
+.edit-history{margin-top:14px;}
+.edit-history-empty{color:var(--ink3);font-size:11.5px;}
+.edit-history-row{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:7px 0;border-top:1px solid var(--divider);font-size:11.5px;}
+.edit-history-row:first-child{border-top:none;}
+.edit-history-row.current .eh-label{color:var(--ink3);}
+.eh-info{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--ink2);}
+.eh-time{font-family:var(--mono);color:var(--ink3);font-size:10.5px;}
+.eh-label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);}
+
 /* sec divider */
 .sec-div{font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:var(--ink3);
   padding:10px 0 4px;display:flex;align-items:center;gap:8px;}
@@ -515,6 +525,7 @@ html.dark .tog-rail{background:rgba(255,255,255,0.15);}
               <span id="edit-status" class="edit-status"></span>
             </div>
           </form>
+          <div id="edit-history" class="edit-history"></div>
         </div>
       </div>
 
@@ -1010,6 +1021,7 @@ function showDetail(id){
   document.getElementById('d-overview').innerHTML=co.overview.map(o=>`<div class="ov-item"><div class="ov-lbl">${o.l}</div><div class="ov-val">${o.v}</div></div>`).join('');
   document.getElementById('d-notes').textContent=co.notes;
   renderNews(co);
+  loadEditHistory(id);
   cTime='3m';
   document.querySelectorAll('#time-tgl .ttb').forEach(b=>b.classList.toggle('act',b.textContent==='3M'));
   renderTrend(co.trend3m);
@@ -1089,6 +1101,69 @@ async function submitMetrics(ev){
     statusEl.textContent='Network error — is app.py running?'; statusEl.style.color='var(--risk)';
   }
   return false;
+}
+
+// ── EDIT HISTORY / RESTORE ──
+// Every save above also appends a row to database/mip.db's kpi_edits table
+// (app.py). This lists those rows so a mis-typed number can be undone by
+// restoring an earlier one — restoring just re-applies its numbers as a new
+// edit (via the same /metrics-recompute path), it doesn't delete anything,
+// so the history list only ever grows and nothing is destructively lost.
+async function loadEditHistory(id){
+  const el=document.getElementById('edit-history');
+  try{
+    const resp=await fetch(`/api/companies/${id}/edits`);
+    if(!resp.ok){ el.innerHTML=''; return; }
+    const edits=await resp.json();
+    renderEditHistory(id, edits);
+  }catch(err){
+    el.innerHTML='';
+  }
+}
+
+function renderEditHistory(id, edits){
+  const el=document.getElementById('edit-history');
+  if(!edits || edits.length===0){ el.innerHTML=''; return; }
+  const rows=edits.map((e,i)=>{
+    const when=new Date(e.edited_at.replace(' ','T')+(e.edited_at.includes('Z')?'':'Z'));
+    const whenStr=isNaN(when)?e.edited_at:when.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    const restoreBtn=i===0
+      ? `<span class="eh-label">Current</span>`
+      : `<button type="button" class="ttb" onclick="restoreEdit(${e.id})">Restore</button>`;
+    return `<div class="edit-history-row ${i===0?'current':''}">
+      <div class="eh-info">
+        <span class="eh-time">${whenStr}</span>
+        <span>Rev $${Math.round(e.revenue).toLocaleString()} · Burn $${Math.round(e.burn_rate).toLocaleString()} · Cash $${Math.round(e.cash_balance).toLocaleString()} · Growth ${(e.growth_rate*100).toFixed(1)}%</span>
+        <span class="flag-chip ${e.flag}" style="font-size:9px;padding:1px 7px;">${e.flagLbl}</span>
+      </div>
+      ${restoreBtn}
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div class="dcard-title" style="margin-top:4px;">Edit History</div>${rows}`;
+}
+
+async function restoreEdit(editId){
+  const co=COS.find(c=>c.id===cCo);
+  if(!co) return;
+  const statusEl=document.getElementById('edit-status');
+  statusEl.textContent='Restoring…'; statusEl.style.color='var(--ink3)';
+  try{
+    const resp=await fetch(`/api/companies/${co.id}/edits/${editId}/restore`,{method:'POST'});
+    const result=await resp.json();
+    if(!resp.ok){
+      statusEl.textContent=result.error||'Restore failed.'; statusEl.style.color='var(--risk)';
+      return;
+    }
+    co.flag=result.flag; co.flagLbl=result.flagLbl; co.score=result.score; co.why=result.why;
+    co.runwayMo=result.runwayMo; co.runway=result.runway;
+    ['trend3m','trend2w','trend1y'].forEach(k=>{ co[k]=co[k].slice(1).concat(co.score); });
+
+    showDetail(co.id);
+    const newStatusEl=document.getElementById('edit-status');
+    newStatusEl.textContent='Restored an earlier entry.'; newStatusEl.style.color='var(--fo)';
+  }catch(err){
+    statusEl.textContent='Network error — is app.py running?'; statusEl.style.color='var(--risk)';
+  }
 }
 
 function renderTrend(data){
