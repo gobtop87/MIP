@@ -3,6 +3,7 @@
 import feedparser
 
 from news_watch.config import RSS_FEEDS
+from news_watch.text_utils import clean_snippet
 
 
 def fetch_rss_articles():
@@ -23,7 +24,7 @@ def fetch_rss_articles():
                     "headline": entry.get("title", ""),
                     "url": entry.get("link", ""),
                     "published_at": entry.get("published", entry.get("updated", "")),
-                    "snippet": entry.get("summary", ""),
+                    "snippet": clean_snippet(entry.get("summary", "")),
                 }
             )
     return articles

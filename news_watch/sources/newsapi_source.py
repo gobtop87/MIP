@@ -5,6 +5,8 @@ import os
 
 import requests
 
+from news_watch.text_utils import clean_snippet
+
 NEWSAPI_URL = "https://newsapi.org/v2/everything"
 
 
@@ -40,7 +42,7 @@ def fetch_newsapi_articles(query, page_size=5):
                 "headline": a.get("title", ""),
                 "url": a.get("url", ""),
                 "published_at": a.get("publishedAt", ""),
-                "snippet": a.get("description", "") or "",
+                "snippet": clean_snippet(a.get("description", "") or ""),
             }
         )
     return articles
