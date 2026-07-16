@@ -1264,6 +1264,10 @@ let newsData=null, newsCompanyFilter='all';
 function escHtml(s){
   return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+function fieldOr(s,fallback){
+  const t=(s==null?'':String(s)).trim();
+  return escHtml(t||fallback);
+}
 function safeHref(u){
   try{
     const parsed=new URL(u,location.href);
@@ -1353,12 +1357,12 @@ function renderNewsTable(items){
     <tr class="src-detail-row" id="src-detail-${idx}" style="display:none;">
       <td colspan="4"><div class="src-detail">
         <div class="src-detail-grid">
-          <div class="src-field"><div class="src-field-lbl">Source Author</div><div class="src-field-val">${escHtml(i.author)||'Not attributed'}</div></div>
-          <div class="src-field"><div class="src-field-lbl">Source Organization</div><div class="src-field-val">${escHtml(i.source_name||i.source)}</div></div>
-          <div class="src-field"><div class="src-field-lbl">Level of Credibility</div><div class="src-field-val">${escHtml(i.credibility)||'Unverified'}</div></div>
+          <div class="src-field"><div class="src-field-lbl">Source Author</div><div class="src-field-val">${fieldOr(i.author,'Not attributed')}</div></div>
+          <div class="src-field"><div class="src-field-lbl">Source Organization</div><div class="src-field-val">${fieldOr(i.source_name||i.source,'Unknown organization')}</div></div>
+          <div class="src-field"><div class="src-field-lbl">Level of Credibility</div><div class="src-field-val">${fieldOr(i.credibility,'Unverified')}</div></div>
         </div>
         <div class="src-field-lbl">Source Summary</div>
-        <div class="src-summary-text">${escHtml(i.snippet)||'No summary available for this source.'}</div>
+        <div class="src-summary-text">${fieldOr(i.snippet,'No summary available for this source.')}</div>
       </div></td>
     </tr>`).join('');
 }
