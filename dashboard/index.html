@@ -193,21 +193,22 @@ html.dark .co-card:hover{box-shadow:0 4px 18px rgba(0,0,0,0.35);}
 .news-tbl a{color:var(--ink);text-decoration:none;}
 .news-tbl a:hover{color:var(--gold);}
 .news-empty{color:var(--ink3);font-size:12px;padding:24px 0;text-align:center;}
-.src-surface{display:flex;align-items:center;gap:14px;cursor:pointer;
+.src-surface{display:flex;align-items:center;cursor:pointer;
   background:var(--panel);border:1.5px solid var(--divider);border-radius:8px;
-  padding:9px 10px 9px 16px;transition:border-color .15s ease;}
+  padding:9px 16px;transition:border-color .15s ease;}
 .src-surface:hover{border-color:var(--gold-mid);}
 .src-title{color:var(--ink);text-decoration:none;flex:1;min-width:0;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .src-title:hover{color:var(--gold);text-decoration:underline;}
 .src-time{font-family:var(--mono);white-space:nowrap;}
+.src-arrow-cell{text-align:center;}
 .src-arrow{background:var(--gold);border:none;padding:0;margin:0;flex-shrink:0;color:#0a0a0a;
   cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
   width:26px;height:26px;border-radius:50%;transition:transform .18s ease,filter .15s ease;}
 .src-arrow::before{content:'';border-style:solid;border-width:6px 4px 0 4px;
   border-color:currentColor transparent transparent transparent;margin-top:2px;}
 .src-arrow.open{transform:rotate(180deg);}
-.src-surface:hover .src-arrow{filter:brightness(1.12);}
+.src-arrow:hover{filter:brightness(1.12);}
 .news-tbl tr:nth-last-child(2) td{border-bottom:none;}
 .src-detail-row td{border-bottom:1px solid var(--divider);padding:0 0 10px;}
 .src-detail{background:var(--panel2);border-left:3px solid var(--gold);border-radius:0 7px 7px 0;
@@ -294,9 +295,10 @@ html.dark .co-card:hover{box-shadow:0 4px 18px rgba(0,0,0,0.35);}
 .thesis-tbl tr:last-child td{border-bottom:none;}
 .news-tbl th:not(:first-child),.news-tbl td:not(:first-child){text-align:left;font-family:var(--sans);font-size:12px;}
 .news-tbl{table-layout:fixed;}
-.news-tbl th:nth-child(1),.news-tbl td:nth-child(1){width:16%;}
-.news-tbl th:nth-child(2),.news-tbl td:nth-child(2){width:58%;}
-.news-tbl th:nth-child(3),.news-tbl td:nth-child(3){width:26%;}
+.news-tbl th:nth-child(1),.news-tbl td:nth-child(1){width:15%;}
+.news-tbl th:nth-child(2),.news-tbl td:nth-child(2){width:51%;}
+.news-tbl th:nth-child(3),.news-tbl td:nth-child(3){width:24%;}
+.news-tbl th:nth-child(4),.news-tbl td:nth-child(4){width:10%;}
 .news-tbl td:nth-child(1){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tgood{color:var(--fo);font-weight:500;}
 .tbad{color:var(--risk);font-weight:500;}
@@ -619,7 +621,7 @@ html.dark .tog-rail{background:rgba(255,255,255,0.15);}
         <div class="dcard-title">Matched Articles</div>
         <table class="thesis-tbl news-tbl">
           <thead>
-            <tr><th>Company</th><th>Article</th><th>Time Published</th></tr>
+            <tr><th>Company</th><th>Article</th><th>Time Published</th><th></th></tr>
           </thead>
           <tbody id="news-tbody"></tbody>
         </table>
@@ -1294,7 +1296,7 @@ function showNews(){
 
 function loadNews(){
   const tbody=document.getElementById('news-tbody');
-  tbody.innerHTML='<tr><td colspan="3" class="news-empty">Loading…</td></tr>';
+  tbody.innerHTML='<tr><td colspan="4" class="news-empty">Loading…</td></tr>';
   const url='/api/news'+(newsCompanyFilter!=='all'?`?company=${encodeURIComponent(newsCompanyFilter)}`:'');
   fetch(url).then(r=>r.json()).then(data=>{
     newsData=data;
@@ -1302,7 +1304,7 @@ function loadNews(){
     renderNewsFilters(data);
     renderNewsTable(data.items);
   }).catch(()=>{
-    tbody.innerHTML='<tr><td colspan="3" class="news-empty">Could not load news data — is the server running?</td></tr>';
+    tbody.innerHTML='<tr><td colspan="4" class="news-empty">Could not load news data — is the server running?</td></tr>';
   });
 }
 
@@ -1335,7 +1337,7 @@ function setNewsFilter(id){
 function renderNewsTable(items){
   const tbody=document.getElementById('news-tbody');
   if(!items.length){
-    tbody.innerHTML='<tr><td colspan="3" class="news-empty">No matched news items yet. Run <code>news_watch.fetch_news</code> (or <code>news_watch.seed_demo_data</code> for a demo) to populate this.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="4" class="news-empty">No matched news items yet. Run <code>news_watch.fetch_news</code> (or <code>news_watch.seed_demo_data</code> for a demo) to populate this.</td></tr>';
     return;
   }
   tbody.innerHTML=items.map((i,idx)=>`
@@ -1344,13 +1346,15 @@ function renderNewsTable(items){
       <td>
         <div class="src-surface" onclick="toggleSourceInfo(${idx})">
           <a href="${safeHref(i.url)}" target="_blank" rel="noopener noreferrer" class="src-title" title="${escHtml(i.headline)}" onclick="event.stopPropagation()">${escHtml(i.headline)}</a>
-          <button type="button" class="src-arrow" id="src-toggle-${idx}" aria-expanded="false" aria-label="Show source details"></button>
         </div>
       </td>
       <td class="src-time" style="color:var(--ink3)">${formatPacific(i.published_at)}</td>
+      <td class="src-arrow-cell">
+        <button type="button" class="src-arrow" id="src-toggle-${idx}" aria-expanded="false" aria-label="Show source details" onclick="toggleSourceInfo(${idx})"></button>
+      </td>
     </tr>
     <tr class="src-detail-row" id="src-detail-${idx}" style="display:none;">
-      <td colspan="3"><div class="src-detail">
+      <td colspan="4"><div class="src-detail">
         <div class="src-detail-grid">
           <div class="src-field"><div class="src-field-lbl">Source Author</div><div class="src-field-val">${escHtml(i.author)||'Not attributed'}</div></div>
           <div class="src-field"><div class="src-field-lbl">Source Organization</div><div class="src-field-val">${escHtml(i.source_name||i.source)}</div></div>
