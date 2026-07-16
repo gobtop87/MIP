@@ -78,14 +78,23 @@ def summarize(client, item):
     return summary or None
 
 
+class CredentialError(RuntimeError):
+    """Raised when the first API call fails, almost always missing/bad auth."""
+
+
 def run(company_id=None, limit=None, dry_run=False, sleep_seconds=1.0):
+    """Backfill thin summaries. Returns {"total", "updated", "failed"}.
+
+    Raises CredentialError immediately if the very first item fails, rather
+    than burning through the whole list on a config problem.
+    """
     db.init_db()
     client = anthropic.Anthropic()
 
     items = db.get_items_for_summarization(company_id=company_id, limit=limit)
     if not items:
         print("Nothing to backfill — every item already has a substantial snippet.")
-        return
+        return {"total": 0, "updated": 0, "failed": 0}
 
     print(f"Found {len(items)} item(s) with a thin or missing summary.")
 
@@ -97,12 +106,11 @@ def run(company_id=None, limit=None, dry_run=False, sleep_seconds=1.0):
         except (anthropic.APIError, TypeError) as exc:
             print(f"[{i}/{len(items)}] FAILED  ({exc}): {label}")
             if i == 1:
-                print(
-                    "\nFirst item failed — this usually means no Anthropic "
-                    "credentials are configured in this environment. Set "
-                    "ANTHROPIC_API_KEY (or run `ant auth login`) and try again."
-                )
-                sys.exit(1)
+                raise CredentialError(
+                    "First item failed — this usually means no Anthropic "
+                    "credentials are configured. Set ANTHROPIC_API_KEY (or "
+                    "run `ant auth login`) and try again."
+                ) from exc
             failed += 1
             time.sleep(sleep_seconds)
             continue
@@ -120,6 +128,7 @@ def run(company_id=None, limit=None, dry_run=False, sleep_seconds=1.0):
         time.sleep(sleep_seconds)
 
     print(f"\nDone. Updated {updated}, failed/skipped {failed}, dry_run={dry_run}.")
+    return {"total": len(items), "updated": updated, "failed": failed}
 
 
 if __name__ == "__main__":
@@ -136,4 +145,8 @@ if __name__ == "__main__":
         help="Seconds to sleep between API calls (default 1.0)",
     )
     args = parser.parse_args()
-    run(company_id=args.company, limit=args.limit, dry_run=args.dry_run, sleep_seconds=args.sleep)
+    try:
+        run(company_id=args.company, limit=args.limit, dry_run=args.dry_run, sleep_seconds=args.sleep)
+    except CredentialError as exc:
+        print(f"\n{exc}")
+        sys.exit(1)

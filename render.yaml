@@ -9,7 +9,13 @@ services:
       (python3 -m news_watch.fetch_news || true) &&
       python3 -m alerts.generate_alerts &&
       (python3 database/fade_score.py || true)
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 300
     envVars:
       - key: DATABASE_URL
+        sync: false
+      - key: NEWSAPI_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: REFRESH_SECRET
         sync: false

@@ -138,6 +138,8 @@ def run():
     else:
         print(f"  Within target range ({low}-{high}/day). ")
 
+    return {"inserted": inserted, "total_today": total_today, "by_source": by_source}
+
 
 if __name__ == "__main__":
     run()
