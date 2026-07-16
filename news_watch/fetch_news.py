@@ -73,7 +73,7 @@ def run():
                     "published_at": article["published_at"],
                     "matched_term": matched,
                     "is_competitor_mention": is_competitor,
-                    "snippet": article["snippet"][:500],
+                    "snippet": article["snippet"],
                 }
             )
             if new:
@@ -120,7 +120,7 @@ def run():
                         "published_at": article["published_at"],
                         "matched_term": matched,
                         "is_competitor_mention": is_competitor,
-                        "snippet": article["snippet"][:500],
+                        "snippet": article["snippet"],
                     }
                 )
                 if new:
