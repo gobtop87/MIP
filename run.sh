@@ -26,6 +26,9 @@ echo "Seeding news data..."
 echo "Generating alerts..."
 ./venv/bin/python -m alerts.generate_alerts >/dev/null
 
+echo "Escalating flags for high-urgency alerts..."
+./venv/bin/python -m alerts.escalate_flags >/dev/null
+
 # Open the browser a couple seconds after the server starts, then start the server.
 (sleep 2 && ./venv/bin/python -c "import webbrowser; webbrowser.open('http://127.0.0.1:8000')") &
 

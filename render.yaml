@@ -8,7 +8,8 @@ services:
       python3 -m news_watch.seed_demo_data &&
       (python3 -m news_watch.fetch_news || true) &&
       python3 -m alerts.generate_alerts &&
-      (python3 database/fade_score.py || true)
+      (python3 database/fade_score.py || true) &&
+      python3 -m alerts.escalate_flags
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 300
     envVars:
       - key: DATABASE_URL
