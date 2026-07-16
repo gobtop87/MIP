@@ -51,16 +51,25 @@ body{background:var(--canvas);color:var(--ink);font-family:var(--sans);min-heigh
 .tb-nav-item.act{color:var(--gold);}
 .tb-right{display:flex;align-items:center;gap:10px;}
 .tb-date{font-size:11px;color:#aaa;font-family:var(--mono);}
-.dark-toggle{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);
-  border:1px solid rgba(255,255,255,0.10);border-radius:14px;padding:4px 10px;
-  cursor:pointer;font-size:11px;color:rgba(255,255,255,0.4);user-select:none;font-family:var(--sans);}
-.dark-toggle:hover{background:rgba(0,0,0,0.08);}
-.tog-rail{width:24px;height:13px;background:rgba(255,255,255,0.15);border-radius:7px;
-  position:relative;flex-shrink:0;transition:background .2s;}
-html.dark .tog-rail{background:var(--gold);}
-.tog-thumb{position:absolute;top:2px;left:2px;width:9px;height:9px;
-  background:#fff;border-radius:50%;transition:transform .2s;}
-html.dark .tog-thumb{transform:translateX(11px);}
+.settings-wrap{position:relative;}
+.settings-btn{display:flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;
+  background:rgba(0,0,0,0.04);border:1px solid rgba(0,0,0,0.10);border-radius:8px;
+  color:#888;cursor:pointer;transition:background .15s,color .15s;}
+.settings-btn:hover{background:rgba(0,0,0,0.08);color:var(--gold);}
+.settings-btn svg{width:16px;height:16px;}
+.settings-menu{position:absolute;top:38px;right:0;min-width:240px;
+  background:var(--panel);border:1px solid var(--divider);border-radius:10px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.18);padding:12px 14px;z-index:400;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.settings-lbl{font-size:12px;color:var(--ink2);white-space:nowrap;}
+.theme-switch{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;font-family:var(--sans);}
+.theme-switch-track{display:inline-block;width:28px;height:15px;background:rgba(0,0,0,0.15);
+  border-radius:8px;position:relative;flex-shrink:0;transition:background .2s;}
+html.dark .theme-switch-track{background:var(--gold);}
+.theme-switch-thumb{position:absolute;top:2px;left:2px;width:11px;height:11px;
+  background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 2px rgba(0,0,0,0.3);}
+html.dark .theme-switch-track .theme-switch-thumb{transform:translateX(13px);}
+.theme-switch-lbl{font-size:11px;color:var(--ink3);width:30px;}
 
 /* ── BODY LAYOUT ── */
 .app-body{display:flex;flex:1;overflow:hidden;height:calc(100vh - 52px);}
@@ -382,9 +391,8 @@ html.dark .tb-section{color:rgba(255,255,255,0.3);}
 html.dark .tb-nav-item{color:rgba(255,255,255,0.3);}
 html.dark .tb-nav-item.act{color:var(--gold);}
 html.dark .tb-date{color:rgba(255,255,255,0.25);}
-html.dark .dark-toggle{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.10);color:rgba(255,255,255,0.4);}
-html.dark .dark-toggle:hover{background:rgba(255,255,255,0.09);}
-html.dark .tog-rail{background:rgba(255,255,255,0.15);}
+html.dark .settings-btn{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.10);color:rgba(255,255,255,0.4);}
+html.dark .settings-btn:hover{background:rgba(255,255,255,0.09);color:var(--gold);}
 </style>
 </head>
 <body>
@@ -403,9 +411,22 @@ html.dark .tog-rail{background:rgba(255,255,255,0.15);}
   </div>
   <div class="tb-right">
     <span class="tb-date" id="tb-date"></span>
-    <div class="dark-toggle" onclick="toggleDark()">
-      <div class="tog-rail"><div class="tog-thumb"></div></div>
-      <span id="dark-lbl">Light</span>
+    <div class="settings-wrap" id="settings-wrap">
+      <button type="button" class="settings-btn" id="settings-btn" onclick="toggleSettingsMenu()" aria-label="Settings" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+      <div class="settings-menu" id="settings-menu" style="display:none;">
+        <div class="settings-row">
+          <span class="settings-lbl">Light / Dark Mode</span>
+          <div class="theme-switch" onclick="toggleDark()">
+            <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>
+            <span class="theme-switch-lbl" id="dark-lbl">Light</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -830,6 +851,22 @@ function toggleDark(){
   updateLogoForTheme();
   rebuildDashCharts();
 }
+
+// ── SETTINGS MENU ──
+function toggleSettingsMenu(){
+  const menu=document.getElementById('settings-menu');
+  const btn=document.getElementById('settings-btn');
+  const open=menu.style.display!=='none';
+  menu.style.display=open?'none':'block';
+  btn.setAttribute('aria-expanded',String(!open));
+}
+document.addEventListener('click',function(e){
+  const wrap=document.getElementById('settings-wrap');
+  if(wrap && !wrap.contains(e.target)){
+    document.getElementById('settings-menu').style.display='none';
+    document.getElementById('settings-btn').setAttribute('aria-expanded','false');
+  }
+});
 function isDark(){return document.documentElement.classList.contains('dark');}
 function textClr(){return isDark()?'#a09880':'#3d3d3d';}
 function gridClr(){return isDark()?'rgba(201,150,42,0.07)':'rgba(0,0,0,0.05)';}
