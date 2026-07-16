@@ -76,7 +76,7 @@ def run():
                 "author": None if source == "sec_edgar" else f"{source_name} Staff",
                 "headline": headline,
                 "url": f"https://example.com/demo-article-{i}",
-                "published_at": published.strftime("%Y-%m-%d %H:%M"),
+                "published_at": published.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "matched_term": matched_term,
                 "is_competitor_mention": is_competitor,
                 "snippet": f"Demo snippet for: {headline}",

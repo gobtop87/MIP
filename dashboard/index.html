@@ -298,6 +298,12 @@ html.dark .co-card:hover{box-shadow:0 4px 18px rgba(0,0,0,0.35);}
 .thesis-tbl td:not(:first-child){text-align:right;font-family:var(--mono);font-size:11px;}
 .thesis-tbl tr:last-child td{border-bottom:none;}
 .news-tbl th:not(:first-child),.news-tbl td:not(:first-child){text-align:left;font-family:var(--sans);font-size:12px;}
+.news-tbl{table-layout:fixed;}
+.news-tbl th:nth-child(1),.news-tbl td:nth-child(1){width:14%;}
+.news-tbl th:nth-child(2),.news-tbl td:nth-child(2){width:52%;}
+.news-tbl th:nth-child(3),.news-tbl td:nth-child(3){width:20%;}
+.news-tbl th:nth-child(4),.news-tbl td:nth-child(4){width:14%;}
+.news-tbl td:nth-child(1),.news-tbl td:nth-child(3){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tgood{color:var(--fo);font-weight:500;}
 .tbad{color:var(--risk);font-weight:500;}
 
@@ -1272,6 +1278,18 @@ function safeHref(u){
   }catch(e){ return '#'; }
 }
 
+function formatPacific(dateStr){
+  if(!dateStr) return '';
+  const dateOnly=/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim());
+  const iso=dateOnly?dateStr:(dateStr.includes('T')||/Z|[+-]\d{2}:?\d{2}$/.test(dateStr)?dateStr:dateStr.replace(' ','T')+'Z');
+  const d=new Date(iso);
+  if(isNaN(d)) return escHtml(dateStr);
+  const datePart=new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',month:'2-digit',day:'2-digit',year:'numeric'}).format(d);
+  if(dateOnly) return datePart;
+  const timePart=new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit',hour12:true,timeZoneName:'short'}).format(d);
+  return `${datePart}, ${timePart}`;
+}
+
 function showNews(){
   document.getElementById('dash-view').style.display='none';
   document.getElementById('detail-view').style.display='none';
@@ -1328,17 +1346,17 @@ function renderNewsTable(items){
   }
   tbody.innerHTML=items.map((i,idx)=>`
     <tr>
-      <td>${escHtml(i.company_name)}</td>
+      <td title="${escHtml(i.company_name)}">${escHtml(i.company_name)}</td>
       <td>
         <div class="src-surface" onclick="toggleSourceInfo(${idx})">
-          <a href="${safeHref(i.url)}" target="_blank" rel="noopener noreferrer" class="src-title" onclick="event.stopPropagation()">${escHtml(i.headline)}</a>
+          <a href="${safeHref(i.url)}" target="_blank" rel="noopener noreferrer" class="src-title" title="${escHtml(i.headline)}" onclick="event.stopPropagation()">${escHtml(i.headline)}</a>
           <span class="src-vdiv"></span>
-          <span class="src-date">${escHtml(i.published_at)}</span>
+          <span class="src-date">${formatPacific(i.published_at)}</span>
           <span class="src-vdiv"></span>
           <button type="button" class="src-arrow" id="src-toggle-${idx}" aria-expanded="false" aria-label="Show source details"></button>
         </div>
       </td>
-      <td>${escHtml(i.matched_term)}</td>
+      <td title="${escHtml(i.matched_term)}">${escHtml(i.matched_term)}</td>
       <td><span class="news-badge ${i.is_competitor_mention?'competitor':'keyword'}">${i.is_competitor_mention?'Competitor':'Keyword'}</span></td>
     </tr>
     <tr class="src-detail-row" id="src-detail-${idx}" style="display:none;">
