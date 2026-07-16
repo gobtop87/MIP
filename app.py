@@ -18,6 +18,7 @@ why-flagged reason, runway, and a short recent-news/alerts preview).
 matched news items, filterable by company) — it reuses news_watch/webapp.py's
 query functions rather than duplicating them.
 """
+import os
 import sqlite3
 from datetime import date
 from pathlib import Path
@@ -30,10 +31,15 @@ from database.db import get_conn as get_mip_conn
 from database.db import init_db as init_mip_db
 from database.flag_reason import generate_flag_reason
 from database.health_score import calculate_health_score, flag_from_score
+from news_watch import backfill_summaries, fetch_news
 from news_watch import db as news_db
+from news_watch.backfill_summaries import CredentialError
 from news_watch.config import COMPANIES
 from news_watch.db import get_conn as get_news_conn
 from news_watch.webapp import get_news_items, get_summary
+
+REFRESH_SECRET = os.environ.get("REFRESH_SECRET")
+REFRESH_BACKFILL_LIMIT = 15
 
 BASE_DIR = Path(__file__).resolve().parent
 DASHBOARD_DIR = BASE_DIR / "dashboard"
@@ -357,6 +363,41 @@ def api_news():
             "total_today": news_db.count_items_today(),
         }
     )
+
+
+@app.route("/api/refresh-news", methods=["POST"])
+def refresh_news():
+    """Pull fresh real news, then backfill real summaries for whatever's new.
+
+    Meant to be called by a scheduled job (see
+    .github/workflows/refresh-news.yml), not by the dashboard itself — it's
+    protected by a shared secret (REFRESH_SECRET) rather than a login, since
+    there's no user session system here. `limit` bounds how many summaries
+    are backfilled per call so a single request can't run long enough to hit
+    the server's request timeout; a backlog just catches up over the next
+    few scheduled runs.
+    """
+    if not REFRESH_SECRET:
+        return jsonify({"error": "REFRESH_SECRET is not configured on the server"}), 503
+    if request.headers.get("X-Refresh-Secret") != REFRESH_SECRET:
+        return jsonify({"error": "unauthorized"}), 401
+
+    limit = request.args.get("limit", type=int) or REFRESH_BACKFILL_LIMIT
+
+    result = {"fetch": None, "fetch_error": None, "backfill": None, "backfill_error": None}
+    try:
+        result["fetch"] = fetch_news.run()
+    except Exception as exc:
+        result["fetch_error"] = str(exc)
+
+    try:
+        result["backfill"] = backfill_summaries.run(limit=limit)
+    except CredentialError as exc:
+        result["backfill_error"] = str(exc)
+    except Exception as exc:
+        result["backfill_error"] = str(exc)
+
+    return jsonify(result)
 
 
 if __name__ == "__main__":

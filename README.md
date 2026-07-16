@@ -199,11 +199,29 @@ internet access.
 
 ## Scheduling
 
-The deliverable doesn't require automation, but to run it daily:
-- **Cron** (simplest): `0 7 * * * cd /path/to/MIP && ./venv/bin/python -m news_watch.fetch_news`
-- **GitHub Actions**: add a scheduled workflow that checks out the repo,
-  installs `requirements.txt`, and runs the module — add `NEWSAPI_KEY` as a
-  repo secret if you have one.
+Running locally, the simplest option is cron:
+`0 7 * * * cd /path/to/MIP && ./venv/bin/python -m news_watch.fetch_news`
+
+**For the deployed (Render) site**, note that a GitHub Actions runner has
+its own throwaway filesystem — a workflow that runs `fetch_news` itself
+would write to a `news_watch/news.db` that gets discarded when the job
+ends, never touching the live site's actual database. Instead, `app.py`
+exposes `POST /api/refresh-news`, which runs `fetch_news` (pull real
+articles) followed by `backfill_summaries` (write real summaries for
+whatever's new) directly on the Render server, where the real database
+lives. `.github/workflows/refresh-news.yml` calls that endpoint on a
+schedule (every 4 hours) instead of running the pipeline itself.
+
+To wire this up:
+1. In Render's Environment settings, add `ANTHROPIC_API_KEY` (for
+   `backfill_summaries`) and `REFRESH_SECRET` (any random string — this
+   authenticates the scheduled call, since there's no login system here).
+2. In the GitHub repo's Settings → Secrets and variables → Actions, add
+   `REFRESH_URL` (your Render service's URL, e.g.
+   `https://mip-dashboard.onrender.com`) and `REFRESH_SECRET` (the same
+   value as step 1).
+3. The workflow will now call `/api/refresh-news` every 4 hours; trigger it
+   manually any time from the Actions tab ("Run workflow") to test it.
 
 ## Known limitation in this sandbox
 

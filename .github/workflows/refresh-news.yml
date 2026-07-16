@@ -1,0 +1,22 @@
+name: Refresh news
+
+on:
+  schedule:
+    - cron: "0 */4 * * *" # every 4 hours
+  workflow_dispatch: {} # allows manual "Run workflow" from the Actions tab
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/refresh-news
+        run: |
+          status=$(curl -sS -o /tmp/response.json -w "%{http_code}" -X POST \
+            "${{ secrets.REFRESH_URL }}/api/refresh-news" \
+            -H "X-Refresh-Secret: ${{ secrets.REFRESH_SECRET }}")
+          echo "HTTP status: $status"
+          cat /tmp/response.json
+          if [ "$status" -ge 300 ]; then
+            echo "Refresh call failed"
+            exit 1
+          fi
