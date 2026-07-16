@@ -24,16 +24,6 @@ serious news event about a portfolio company can go completely unnoticed on
 the "Morning Dashboard" view unless someone happens to click into the News
 Feed for that specific company. This closes that gap.
 
-## Where to start
-
-- `alerts/README.md` and `database/README.md` — read both for context on how
-  alerts and flags currently work independently.
-- `database/fade_score.py` — the existing job that already sets a company's
-  flag from a different trigger (a stale/low score). Yours is the same idea,
-  different trigger.
-- `alerts/generate_alerts.py` — the closest existing example of a script
-  that reads from one part of the data and writes to another.
-
 One open question worth deciding deliberately, not by accident: **should an
 escalated flag clear itself automatically once things quiet down, or does a
 person need to acknowledge it first?** Either is defensible — pick one and
