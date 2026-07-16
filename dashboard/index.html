@@ -887,6 +887,25 @@ function buildAlerts(){
   z.appendChild(strip);
 }
 
+// ── SIDEBAR FLAG COUNTS ──
+// Keeps the Portfolio Health tiles and the filter button counts in sync
+// with COS's actual flags — both start as hardcoded HTML placeholders
+// matching the mock data, so they'd otherwise go stale the moment live
+// data (or a KPI edit/restore) changes a company's flag.
+function updateSidebarCounts(){
+  const rc=COS.filter(c=>c.flag==='risk').length;
+  const fc=COS.filter(c=>c.flag==='follow_on').length;
+  const oc=COS.filter(c=>c.flag==='on_track').length;
+  document.getElementById('sb-total').textContent=COS.length;
+  document.getElementById('sb-risk').textContent=rc;
+  document.getElementById('sb-fo').textContent=fc;
+  document.getElementById('sb-ot').textContent=oc;
+  document.getElementById('fc-all').textContent=COS.length;
+  document.getElementById('fc-risk').textContent=rc;
+  document.getElementById('fc-fo').textContent=fc;
+  document.getElementById('fc-ot').textContent=oc;
+}
+
 // ── FILTER/SORT ──
 function setFilter(f,btn){
   cFilter=f;
@@ -1155,6 +1174,7 @@ async function submitMetrics(ev){
     // Illustrative trend arrays aren't real history, so slide the window and
     // append the new score — the visuals move without faking a full series.
     ['trend3m','trend2w','trend1y'].forEach(k=>{ co[k]=co[k].slice(1).concat(co.score); });
+    updateSidebarCounts();
 
     showDetail(co.id);
     statusEl.textContent='Saved — score and flag updated.'; statusEl.style.color='var(--fo)';
@@ -1218,6 +1238,7 @@ async function restoreEdit(editId){
     co.flag=result.flag; co.flagLbl=result.flagLbl; co.score=result.score; co.why=result.why;
     co.runwayMo=result.runwayMo; co.runway=result.runway;
     ['trend3m','trend2w','trend1y'].forEach(k=>{ co[k]=co[k].slice(1).concat(co.score); });
+    updateSidebarCounts();
 
     showDetail(co.id);
     const newStatusEl=document.getElementById('edit-status');
@@ -1416,6 +1437,7 @@ function toggleSourceInfo(idx){
 // ── INIT ──
 updateLogoForTheme();
 applyLiveData().finally(()=>{
+  updateSidebarCounts();
   buildAlerts();
   renderList();
   rebuildDashCharts();
