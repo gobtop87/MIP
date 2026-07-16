@@ -197,10 +197,17 @@ html.dark .co-card:hover{box-shadow:0 4px 18px rgba(0,0,0,0.35);}
 .news-badge.competitor{background:var(--ot-bg);color:var(--ot);border:1px solid var(--ot-border);}
 .news-badge.keyword{background:var(--panel2);color:var(--ink3);border:1px solid var(--divider);}
 .news-empty{color:var(--ink3);font-size:12px;padding:24px 0;text-align:center;}
-.src-toggle{background:none;border:none;padding:0;margin:0;font:inherit;font-size:12px;color:var(--ink2);
-  cursor:pointer;display:inline-flex;align-items:center;gap:5px;}
-.src-toggle:hover{color:var(--gold);}
-.src-toggle-chevron{color:var(--ink3);font-size:9px;width:8px;display:inline-block;}
+.src-surface{display:flex;align-items:center;gap:12px;cursor:pointer;}
+.src-title{color:var(--ink);text-decoration:none;flex:1;min-width:0;}
+.src-title:hover{color:var(--gold);text-decoration:underline;}
+.src-date{color:var(--ink3);font-family:var(--mono);font-size:11px;white-space:nowrap;}
+.src-arrow{background:none;border:none;padding:0;margin:0;flex-shrink:0;color:var(--ink3);
+  cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+  width:14px;height:14px;transition:transform .18s ease,color .15s ease;}
+.src-arrow::before{content:'';border-style:solid;border-width:5px 4px 0 4px;
+  border-color:currentColor transparent transparent transparent;}
+.src-arrow.open{transform:rotate(-180deg);color:var(--gold);}
+.src-surface:hover .src-arrow{color:var(--gold);}
 .news-tbl tr:nth-last-child(2) td{border-bottom:none;}
 .src-detail-row td{border-bottom:1px solid var(--divider);padding:0 0 10px;}
 .src-detail{background:var(--panel2);border-left:3px solid var(--gold);border-radius:0 7px 7px 0;
@@ -607,7 +614,7 @@ html.dark .tog-rail{background:rgba(255,255,255,0.15);}
         <div class="dcard-title">Matched Articles</div>
         <table class="thesis-tbl news-tbl">
           <thead>
-            <tr><th>Company</th><th>Source</th><th>Headline</th><th>Matched On</th><th>Type</th><th style="text-align:left;">Published</th></tr>
+            <tr><th>Company</th><th>Article</th><th>Matched On</th><th>Type</th></tr>
           </thead>
           <tbody id="news-tbody"></tbody>
         </table>
@@ -1270,7 +1277,7 @@ function showNews(){
 
 function loadNews(){
   const tbody=document.getElementById('news-tbody');
-  tbody.innerHTML='<tr><td colspan="6" class="news-empty">Loading…</td></tr>';
+  tbody.innerHTML='<tr><td colspan="4" class="news-empty">Loading…</td></tr>';
   const url='/api/news'+(newsCompanyFilter!=='all'?`?company=${encodeURIComponent(newsCompanyFilter)}`:'');
   fetch(url).then(r=>r.json()).then(data=>{
     newsData=data;
@@ -1278,7 +1285,7 @@ function loadNews(){
     renderNewsFilters(data);
     renderNewsTable(data.items);
   }).catch(()=>{
-    tbody.innerHTML='<tr><td colspan="6" class="news-empty">Could not load news data — is the server running?</td></tr>';
+    tbody.innerHTML='<tr><td colspan="4" class="news-empty">Could not load news data — is the server running?</td></tr>';
   });
 }
 
@@ -1311,29 +1318,27 @@ function setNewsFilter(id){
 function renderNewsTable(items){
   const tbody=document.getElementById('news-tbody');
   if(!items.length){
-    tbody.innerHTML='<tr><td colspan="6" class="news-empty">No matched news items yet. Run <code>news_watch.fetch_news</code> (or <code>news_watch.seed_demo_data</code> for a demo) to populate this.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="4" class="news-empty">No matched news items yet. Run <code>news_watch.fetch_news</code> (or <code>news_watch.seed_demo_data</code> for a demo) to populate this.</td></tr>';
     return;
   }
   tbody.innerHTML=items.map((i,idx)=>`
     <tr>
       <td>${escHtml(i.company_name)}</td>
       <td>
-        <button type="button" class="src-toggle" id="src-toggle-${idx}" onclick="toggleSourceInfo(${idx})" aria-expanded="false">
-          <span class="src-toggle-chevron">▸</span> ${escHtml(i.source_name||i.source)}
-        </button>
+        <div class="src-surface" onclick="toggleSourceInfo(${idx})">
+          <a href="${safeHref(i.url)}" target="_blank" rel="noopener noreferrer" class="src-title" onclick="event.stopPropagation()">${escHtml(i.headline)}</a>
+          <span class="src-date">${escHtml(i.published_at)}</span>
+          <button type="button" class="src-arrow" id="src-toggle-${idx}" aria-expanded="false" aria-label="Show source details"></button>
+        </div>
       </td>
-      <td><a href="${safeHref(i.url)}" target="_blank" rel="noopener noreferrer">${escHtml(i.headline)}</a></td>
       <td>${escHtml(i.matched_term)}</td>
       <td><span class="news-badge ${i.is_competitor_mention?'competitor':'keyword'}">${i.is_competitor_mention?'Competitor':'Keyword'}</span></td>
-      <td style="color:var(--ink3)">${escHtml(i.published_at)}</td>
     </tr>
     <tr class="src-detail-row" id="src-detail-${idx}" style="display:none;">
-      <td colspan="6"><div class="src-detail">
+      <td colspan="4"><div class="src-detail">
         <div class="src-detail-grid">
-          <div class="src-field"><div class="src-field-lbl">Source Title</div><div class="src-field-val">${escHtml(i.headline)}</div></div>
           <div class="src-field"><div class="src-field-lbl">Source Author</div><div class="src-field-val">${escHtml(i.author)||'Not attributed'}</div></div>
           <div class="src-field"><div class="src-field-lbl">Source Organization</div><div class="src-field-val">${escHtml(i.source_name||i.source)}</div></div>
-          <div class="src-field"><div class="src-field-lbl">Date Published</div><div class="src-field-val">${escHtml(i.published_at)||'Unknown'}</div></div>
           <div class="src-field"><div class="src-field-lbl">Level of Credibility</div><div class="src-field-val">${escHtml(i.credibility)||'Unverified'}</div></div>
         </div>
         <div class="src-field-lbl">Source Summary</div>
@@ -1348,7 +1353,7 @@ function toggleSourceInfo(idx){
   const open=row.style.display!=='none';
   row.style.display=open?'none':'table-row';
   btn.setAttribute('aria-expanded',String(!open));
-  btn.querySelector('.src-toggle-chevron').textContent=open?'▸':'▾';
+  btn.classList.toggle('open',!open);
 }
 
 // ── INIT ──
