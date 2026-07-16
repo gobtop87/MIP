@@ -197,17 +197,22 @@ html.dark .co-card:hover{box-shadow:0 4px 18px rgba(0,0,0,0.35);}
 .news-badge.competitor{background:var(--ot-bg);color:var(--ot);border:1px solid var(--ot-border);}
 .news-badge.keyword{background:var(--panel2);color:var(--ink3);border:1px solid var(--divider);}
 .news-empty{color:var(--ink3);font-size:12px;padding:24px 0;text-align:center;}
-.src-surface{display:flex;align-items:center;gap:12px;cursor:pointer;}
-.src-title{color:var(--ink);text-decoration:none;flex:1;min-width:0;}
+.src-surface{display:flex;align-items:center;gap:14px;cursor:pointer;
+  background:var(--panel);border:1.5px solid var(--divider);border-radius:8px;
+  padding:9px 10px 9px 16px;transition:border-color .15s ease;}
+.src-surface:hover{border-color:var(--gold-mid);}
+.src-title{color:var(--ink);text-decoration:none;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .src-title:hover{color:var(--gold);text-decoration:underline;}
-.src-date{color:var(--ink3);font-family:var(--mono);font-size:11px;white-space:nowrap;}
-.src-arrow{background:none;border:none;padding:0;margin:0;flex-shrink:0;color:var(--ink3);
+.src-vdiv{width:0;height:16px;border-left:1.5px dotted var(--ink3);flex-shrink:0;}
+.src-date{color:var(--ink3);font-family:var(--mono);font-size:11px;white-space:nowrap;flex-shrink:0;}
+.src-arrow{background:var(--gold);border:none;padding:0;margin:0;flex-shrink:0;color:#0a0a0a;
   cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
-  width:14px;height:14px;transition:transform .18s ease,color .15s ease;}
-.src-arrow::before{content:'';border-style:solid;border-width:5px 4px 0 4px;
-  border-color:currentColor transparent transparent transparent;}
-.src-arrow.open{transform:rotate(-180deg);color:var(--gold);}
-.src-surface:hover .src-arrow{color:var(--gold);}
+  width:26px;height:26px;border-radius:50%;transition:transform .18s ease,filter .15s ease;}
+.src-arrow::before{content:'';border-style:solid;border-width:6px 4px 0 4px;
+  border-color:currentColor transparent transparent transparent;margin-top:2px;}
+.src-arrow.open{transform:rotate(180deg);}
+.src-surface:hover .src-arrow{filter:brightness(1.12);}
 .news-tbl tr:nth-last-child(2) td{border-bottom:none;}
 .src-detail-row td{border-bottom:1px solid var(--divider);padding:0 0 10px;}
 .src-detail{background:var(--panel2);border-left:3px solid var(--gold);border-radius:0 7px 7px 0;
@@ -1327,7 +1332,9 @@ function renderNewsTable(items){
       <td>
         <div class="src-surface" onclick="toggleSourceInfo(${idx})">
           <a href="${safeHref(i.url)}" target="_blank" rel="noopener noreferrer" class="src-title" onclick="event.stopPropagation()">${escHtml(i.headline)}</a>
+          <span class="src-vdiv"></span>
           <span class="src-date">${escHtml(i.published_at)}</span>
+          <span class="src-vdiv"></span>
           <button type="button" class="src-arrow" id="src-toggle-${idx}" aria-expanded="false" aria-label="Show source details"></button>
         </div>
       </td>
