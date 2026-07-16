@@ -48,15 +48,3 @@ write down why.
   re-trigger the same flag change over and over.
 - It works whether the app is running locally or against the real Supabase
   database in production.
-
----
-
-## Scoring
-
-| Criteria | Weight |
-|---|---|
-| **Correctness** — a high-urgency alert actually flips the right company to `risk`, with an accurate, specific reason | 40% |
-| **Doesn't break on repeat runs** — re-running it doesn't create duplicate flag changes or errors | 20% |
-| **Fits the existing codebase** — reuses the patterns already in `database/` and `alerts/` rather than reinventing them | 20% |
-| **The open design question is answered and documented**, not left as an accident of how the code happens to behave | 10% |
-| **Tested against both backends** — confirmed working locally (SQLite) and against Supabase, not just one | 10% |
