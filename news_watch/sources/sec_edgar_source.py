@@ -30,13 +30,23 @@ def fetch_sec_filings(query, limit=5):
         filing_date = src.get("file_date", "")
         form_type = src.get("root_forms", ["8-K"])[0]
 
+        snippet = (
+            f"{company_name} filed a Form {form_type} with the SEC on {filing_date or 'an unspecified date'}, "
+            f"which was surfaced by a full-text search for \"{query}\" (accession number {accession_no}). "
+            "The filing does not itself specify the exact nature of the underlying event beyond matching that "
+            "search term. Companies typically file Form 8-K to disclose material events such as leadership "
+            "changes, material agreements, acquisitions, or restructuring actions that investors would "
+            "consider significant. Because this summary is generated from filing metadata rather than the "
+            "filing's full text, the specific substance of the disclosure should be confirmed by reviewing "
+            "the document directly on EDGAR."
+        )
         filings.append(
             {
                 "source_name": "SEC EDGAR",
                 "headline": f"{company_name} filed {form_type} mentioning \"{query}\"",
                 "url": f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}",
                 "published_at": filing_date,
-                "snippet": f"Filing {accession_no} matched full-text search for '{query}'.",
+                "snippet": snippet,
             }
         )
     return filings
