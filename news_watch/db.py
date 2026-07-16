@@ -116,3 +116,47 @@ def count_items_today():
             "SELECT COUNT(*) FROM news_items WHERE date(fetched_at) = date('now')"
         )
         return cur.fetchone()[0]
+
+
+def get_items_for_summarization(company_id=None, min_snippet_len=280, limit=None):
+    """Rows whose snippet looks too short to be a real summary (or is empty).
+
+    280 chars is roughly one short sentence past a typical NewsAPI one-liner —
+    comfortably below any genuine 4-5 sentence summary.
+    """
+    query = """
+        SELECT id, company_id, source, source_name, headline, url, snippet
+        FROM news_items
+        WHERE snippet IS NULL OR length(snippet) < ?
+    """
+    params = [min_snippet_len]
+    if company_id:
+        query += " AND company_id = ?"
+        params.append(company_id)
+    query += " ORDER BY fetched_at DESC"
+    if limit:
+        query += " LIMIT ?"
+        params.append(limit)
+
+    with get_conn() as conn:
+        rows = conn.execute(query, params).fetchall()
+
+    return [
+        {
+            "id": r[0],
+            "company_id": r[1],
+            "source": r[2],
+            "source_name": r[3],
+            "headline": r[4],
+            "url": r[5],
+            "snippet": r[6],
+        }
+        for r in rows
+    ]
+
+
+def update_snippet(item_id, snippet):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE news_items SET snippet = ? WHERE id = ?", (snippet, item_id)
+        )
