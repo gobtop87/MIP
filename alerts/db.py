@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS alerts (
     company_id TEXT NOT NULL REFERENCES companies(id),
     urgency TEXT NOT NULL,
     message TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now')),
+    applied_to_flag INTEGER NOT NULL DEFAULT 0
 );
 """
 
@@ -31,6 +32,10 @@ def get_conn():
 def init_db():
     with get_conn() as conn:
         conn.executescript(SCHEMA)
+        try:
+            conn.execute("ALTER TABLE alerts ADD COLUMN applied_to_flag INTEGER NOT NULL DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # already migrated
 
 
 def unalerted_news_items():
@@ -66,3 +71,26 @@ def count_alerts_by_urgency():
     with get_conn() as conn:
         cur = conn.execute("SELECT urgency, COUNT(*) FROM alerts GROUP BY urgency")
         return dict(cur.fetchall())
+
+
+def unescalated_high_urgency_alerts(since_iso):
+    """Recent, high-urgency alerts that haven't flipped a company to 'risk'
+    yet. "Recent" means created on or after `since_iso` (an ISO datetime
+    string) so a months-old, never-revisited alert doesn't re-escalate a
+    company out of nowhere the first time this job finally gets run again."""
+    with get_conn() as conn:
+        cur = conn.execute(
+            """
+            SELECT id, news_item_id, company_id, message, created_at
+            FROM alerts
+            WHERE urgency = 'high' AND applied_to_flag = 0 AND created_at >= ?
+            """,
+            (since_iso,),
+        )
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+
+def mark_alert_applied(alert_id):
+    with get_conn() as conn:
+        conn.execute("UPDATE alerts SET applied_to_flag = 1 WHERE id = ?", (alert_id,))

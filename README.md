@@ -68,6 +68,13 @@ an ID scheme):
 - `news_watch/news.db` (Assignment 4) — recent news, matched per company
 - `news_watch/news.db` (Assignment 5, same file) — urgency-rated alerts
 
+`alerts/escalate_flags.py` (Assignment 6) is what connects the last two: it
+writes a recent, unhandled `high`-urgency alert's escalation straight into
+`database/mip.db`'s `companies.flag`/`flag_reason`, so `/api/companies`
+doesn't need to know alerts exist at all — it just reads a `flag` that
+already accounts for them. See `alerts/README.md` for how that escalation
+works and stays put.
+
 The dashboard's JS fetches this on load and merges it into the existing
 company data by id. **Flag, score, "why flagged" reason, runway, and the
 Recent News panel are live.** The per-company KPI scorecards, investment
@@ -92,6 +99,11 @@ python3 database/fade_score.py
 # 3. Alerts (Assignment 5) — optional, /api/companies degrades gracefully
 #    to an empty alerts list if this hasn't been run
 ./venv/bin/python -m alerts.generate_alerts
+
+# 3b. Escalate flags for high-urgency alerts (Assignment 6) — flips a
+#     company to `risk` if it has a recent, unhandled `high`-urgency alert,
+#     even if its financials alone wouldn't put it there
+./venv/bin/python -m alerts.escalate_flags
 
 # 4. Serve the dashboard
 ./venv/bin/python app.py
