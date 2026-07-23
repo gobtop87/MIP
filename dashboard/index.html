@@ -389,7 +389,195 @@ html.dark .co-card:hover{box-shadow:0 4px 18px rgba(0,0,0,0.35);}
 .ot-tri .ftri-val{color:var(--ot);}
 .ot-tri .ftri-lbl{color:var(--ot);}
 
-html.dark .topbar{background:#0a0a0a;border-bottom:1px solid rgba(201,150,42,0.3);}
+/* ════════════════════════════════════════════════════════════
+   PRO POLISH & MOTION LAYER
+   Overrides + additions that give the dashboard its interactive,
+   high-end feel: glass surfaces, layered shadows, entrance
+   choreography, micro-interactions, skeletons, and rings.
+   Everything degrades gracefully under prefers-reduced-motion.
+   ════════════════════════════════════════════════════════════ */
+:root{
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+  --shadow-1:0 1px 2px rgba(20,16,8,.05),0 2px 8px rgba(20,16,8,.04);
+  --shadow-2:0 2px 6px rgba(20,16,8,.06),0 10px 28px rgba(20,16,8,.10);
+  --shadow-3:0 4px 12px rgba(20,16,8,.08),0 18px 44px rgba(20,16,8,.16);
+}
+html.dark{
+  --shadow-1:0 1px 2px rgba(0,0,0,.4),0 2px 8px rgba(0,0,0,.3);
+  --shadow-2:0 2px 6px rgba(0,0,0,.45),0 10px 28px rgba(0,0,0,.4);
+  --shadow-3:0 4px 12px rgba(0,0,0,.5),0 18px 44px rgba(0,0,0,.55);
+}
+
+/* ambient canvas glow */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(900px 420px at 18% -8%,var(--gold-faint),transparent 60%),
+             radial-gradient(700px 380px at 95% 0%,rgba(26,78,138,0.05),transparent 55%);}
+.app-body{position:relative;z-index:1;}
+
+/* keyframes */
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes menuPop{from{opacity:0;transform:translateY(-6px) scale(.97);}to{opacity:1;transform:none;}}
+@keyframes shimmer{from{background-position:200% 0;}to{background-position:-200% 0;}}
+@keyframes alertGlow{0%,100%{box-shadow:0 0 0 0 rgba(192,57,43,0);}50%{box-shadow:0 0 0 4px rgba(192,57,43,0.10);}}
+@keyframes dotPulse{0%{box-shadow:0 0 0 0 rgba(26,122,69,.45);}70%{box-shadow:0 0 0 6px rgba(26,122,69,0);}100%{box-shadow:0 0 0 0 rgba(26,122,69,0);}}
+@keyframes rippleAnim{to{transform:scale(1);opacity:0;}}
+@keyframes sheenSweep{from{transform:translateX(-120%) skewX(-18deg);}to{transform:translateX(280%) skewX(-18deg);}}
+@keyframes warnBlink{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+/* view transitions */
+.view-anim{animation:fadeUp .38s var(--ease-out) both;}
+
+/* glass topbar + animated nav underline */
+.topbar{background:rgba(255,255,255,0.78);backdrop-filter:blur(14px) saturate(1.4);
+  -webkit-backdrop-filter:blur(14px) saturate(1.4);
+  border-bottom:1px solid rgba(20,16,8,0.08);box-shadow:0 1px 0 rgba(255,255,255,.6) inset;}
+.tb-nav-item{position:relative;padding:4px 0;}
+.tb-nav-item::after{content:'';position:absolute;left:0;right:0;bottom:-2px;height:2px;
+  background:var(--gold);border-radius:2px;transform:scaleX(0);transform-origin:left;
+  transition:transform .28s var(--ease-out);}
+.tb-nav-item:hover::after{transform:scaleX(.55);}
+.tb-nav-item.act::after{transform:scaleX(1);}
+
+/* scroll progress */
+.scroll-progress{position:absolute;left:0;bottom:-1px;height:2px;width:100%;z-index:210;
+  background:linear-gradient(90deg,var(--gold),#e0b45a);transform:scaleX(0);
+  transform-origin:left;transition:transform .1s linear;pointer-events:none;}
+
+/* live data dot */
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--ink3);opacity:.4;
+  display:inline-block;flex-shrink:0;transition:background .3s,opacity .3s;}
+.live-dot.on{background:var(--fo);opacity:1;animation:dotPulse 2.4s ease-out infinite;}
+
+/* settings menu pop */
+.settings-menu{animation:menuPop .22s var(--ease-out);box-shadow:var(--shadow-3);}
+.settings-btn:active{transform:scale(.92);}
+.settings-btn{transition:background .15s,color .15s,transform .12s var(--ease-spring);}
+
+/* stat tiles: hover lift + tabular numbers */
+.hstat{transition:transform .22s var(--ease-out),box-shadow .22s var(--ease-out),border-color .22s;}
+.hstat:hover{transform:translateY(-2px);box-shadow:var(--shadow-1);border-color:var(--gold-mid);}
+.hstat-val,.ftri-val,.perf-val,.full-stat-val,.score-num{font-variant-numeric:tabular-nums;}
+.ftri{transition:transform .22s var(--ease-out),box-shadow .22s var(--ease-out);}
+.ftri:hover{transform:translateY(-2px);box-shadow:var(--shadow-1);}
+
+/* sidebar entrance */
+.sidebar>*{animation:fadeUp .45s var(--ease-out) both;}
+.sidebar>*:nth-child(1){animation-delay:.05s;}
+.sidebar>*:nth-child(2){animation-delay:.12s;}
+.sidebar>*:nth-child(3){animation-delay:.18s;}
+
+/* alert strip breathing glow */
+.alert-strip{animation:alertGlow 2.6s ease-in-out infinite;}
+.alert-strip .alert-hd::first-letter{animation:warnBlink 1.6s ease-in-out infinite;}
+
+/* interactive buttons: press + ripple host */
+.fbtn,.stab,.ttb,.back-btn,.settings-btn,.src-arrow,.lang-sel,.sort-sel{
+  position:relative;overflow:hidden;}
+.fbtn,.stab,.ttb,.back-btn{transition:all .18s var(--ease-out);}
+.fbtn:active,.stab:active,.ttb:active,.back-btn:active{transform:scale(.97);}
+.fbtn:hover,.stab:hover{transform:translateX(2px);}
+.ripple{position:absolute;border-radius:50%;background:currentColor;opacity:.14;
+  transform:scale(0);animation:rippleAnim .55s var(--ease-out) forwards;pointer-events:none;}
+
+/* focus visibility */
+.fbtn:focus-visible,.stab:focus-visible,.ttb:focus-visible,.back-btn:focus-visible,
+.settings-btn:focus-visible,.src-arrow:focus-visible,.co-search:focus-visible,
+.sort-sel:focus-visible,.lang-sel:focus-visible{
+  outline:2px solid var(--gold);outline-offset:2px;}
+
+/* chart cards */
+.mini-chart-card{transition:transform .25s var(--ease-out),box-shadow .25s var(--ease-out),border-color .25s;
+  animation:fadeUp .5s var(--ease-out) both;}
+.chart-strip .mini-chart-card:nth-child(1){animation-delay:.06s;}
+.chart-strip .mini-chart-card:nth-child(2){animation-delay:.12s;}
+.chart-strip .mini-chart-card:nth-child(3){animation-delay:.18s;}
+.mini-chart-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-2);border-color:var(--gold-mid);}
+
+/* company cards: layered hover, sheen, pointer glow */
+.co-card{--mx:50%;--my:50%;
+  transition:box-shadow .25s var(--ease-out),transform .2s var(--ease-out),border-color .25s;
+  animation:fadeUp .45s var(--ease-out) both;}
+.co-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-2);border-color:var(--gold-mid);}
+.co-card:active{transform:translateY(-1px) scale(.995);}
+.co-card::after{content:'';position:absolute;inset:0;pointer-events:none;opacity:0;
+  background:radial-gradient(220px circle at var(--mx) var(--my),var(--gold-faint),transparent 65%);
+  transition:opacity .3s;}
+.co-card:hover::after{opacity:1;}
+.co-card .sheen{position:absolute;top:0;bottom:0;width:45%;pointer-events:none;opacity:0;
+  background:linear-gradient(105deg,transparent,rgba(255,255,255,.16),transparent);}
+html.dark .co-card .sheen{background:linear-gradient(105deg,transparent,rgba(240,236,227,.06),transparent);}
+.co-card:hover .sheen{opacity:1;animation:sheenSweep .8s var(--ease-out);}
+.co-card .chevron{transition:transform .22s var(--ease-out),color .22s;}
+.co-card:hover .chevron{transform:translateX(3px);color:var(--gold);}
+.pulse-fill{transition:height .8s var(--ease-spring);}
+
+/* search box */
+.co-search{background:var(--panel);border:1px solid var(--divider);border-radius:7px;
+  padding:6px 11px 6px 28px;font-size:12px;color:var(--ink);font-family:var(--sans);
+  width:150px;transition:width .3s var(--ease-out),border-color .2s,box-shadow .2s;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23787878' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:9px center;}
+.co-search:focus{outline:none;border-color:var(--gold);width:200px;
+  box-shadow:0 0 0 3px var(--gold-faint);}
+.co-search::placeholder{color:var(--ink3);}
+
+/* detail hero: animated top border + score ring */
+.co-hero{box-shadow:var(--shadow-1);}
+.co-hero::before{background:linear-gradient(90deg,var(--gold),#e8c168,var(--gold));
+  background-size:200% 100%;animation:shimmer 6s linear infinite;}
+.score-circle{position:relative;border:none;background:var(--panel2);}
+.score-ring{position:absolute;inset:-4px;width:calc(100% + 8px);height:calc(100% + 8px);
+  transform:rotate(-90deg);}
+.score-ring .ring-bg{fill:none;stroke:var(--divider);stroke-width:4;}
+.score-ring .ring-val{fill:none;stroke:var(--gold);stroke-width:4;stroke-linecap:round;
+  transition:stroke-dashoffset 1.1s var(--ease-out),stroke .4s;}
+
+/* detail cards entrance */
+#detail-view .dgrid{animation:fadeUp .45s var(--ease-out) both;}
+#detail-view .dgrid:nth-of-type(1){animation-delay:.05s;}
+#detail-view .dgrid:nth-of-type(2){animation-delay:.10s;}
+#detail-view .dgrid:nth-of-type(3){animation-delay:.15s;}
+#detail-view .dgrid:nth-of-type(4){animation-delay:.20s;}
+#detail-view .dgrid:nth-of-type(5){animation-delay:.25s;}
+.dcard{transition:box-shadow .25s var(--ease-out),border-color .25s;}
+.dcard:hover{box-shadow:var(--shadow-1);border-color:var(--gold-mid);}
+
+/* KPI bars: width animates in (JS sets from 0 → data-w) */
+.kpi-fill{transition:width .9s var(--ease-out);}
+.kpi-tip{animation:menuPop .18s var(--ease-out);}
+
+/* news rows */
+.news-item{transition:background .18s,padding-left .18s var(--ease-out);border-radius:5px;}
+.news-item:hover{background:var(--gold-faint);padding-left:8px;}
+.src-detail{animation:fadeUp .3s var(--ease-out);}
+.news-tbl tbody tr:not(.src-detail-row){transition:background .15s;}
+.news-tbl tbody tr:not(.src-detail-row):hover{background:var(--gold-faint);}
+
+/* skeleton loaders */
+.skel{height:14px;border-radius:6px;margin:8px 0;
+  background:linear-gradient(90deg,var(--panel2) 25%,var(--divider) 50%,var(--panel2) 75%);
+  background-size:200% 100%;animation:shimmer 1.3s linear infinite;}
+.skel.w60{width:60%;}.skel.w80{width:80%;}.skel.w40{width:40%;}
+
+/* custom scrollbar */
+.main-panel::-webkit-scrollbar,.sidebar::-webkit-scrollbar{width:9px;}
+.main-panel::-webkit-scrollbar-track,.sidebar::-webkit-scrollbar-track{background:transparent;}
+.main-panel::-webkit-scrollbar-thumb,.sidebar::-webkit-scrollbar-thumb{
+  background:var(--divider);border-radius:5px;border:2px solid var(--canvas);}
+.main-panel::-webkit-scrollbar-thumb:hover,.sidebar::-webkit-scrollbar-thumb:hover{background:var(--gold-mid);}
+
+/* count-up numbers get a subtle settle */
+.counting{transition:opacity .2s;}
+
+/* reduced motion: honor the OS preference everywhere */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;}
+}
+
+html.dark .topbar{background:rgba(10,10,10,0.72);border-bottom:1px solid rgba(201,150,42,0.3);}
 html.dark .tb-pipe{background:rgba(201,150,42,0.25);}
 html.dark .tb-section{color:rgba(255,255,255,0.3);}
 html.dark .tb-nav-item{color:rgba(255,255,255,0.3);}
@@ -414,6 +602,7 @@ html.dark .settings-btn:hover{background:rgba(255,255,255,0.09);color:var(--gold
     </div>
   </div>
   <div class="tb-right">
+    <span class="live-dot" id="live-dot" title="Live data"></span>
     <span class="tb-date" id="tb-date"></span>
     <div class="settings-wrap" id="settings-wrap">
       <button type="button" class="settings-btn" id="settings-btn" onclick="toggleSettingsMenu()" aria-label="Settings" aria-expanded="false">
@@ -443,6 +632,7 @@ html.dark .settings-btn:hover{background:rgba(255,255,255,0.09);color:var(--gold
       </div>
     </div>
   </div>
+  <div class="scroll-progress" id="scroll-progress"></div>
 </div>
 
 <!-- ── APP BODY ── -->
@@ -529,7 +719,10 @@ html.dark .settings-btn:hover{background:rgba(255,255,255,0.09);color:var(--gold
 
       <div class="list-hd">
         <span class="list-hd-title" data-i18n="Portfolio Companies">Portfolio Companies</span>
-        <span class="co-count-badge" id="co-count-badge">6 shown</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input id="co-search" class="co-search" type="search" placeholder="Search companies…" data-i18n-placeholder="Search companies…" oninput="setSearch(this.value)" aria-label="Search companies"/>
+          <span class="co-count-badge" id="co-count-badge">6 shown</span>
+        </div>
       </div>
       <div id="co-list"></div>
     </div>
@@ -549,6 +742,10 @@ html.dark .settings-btn:hover{background:rgba(255,255,255,0.09);color:var(--gold
       <div class="co-hero">
         <div class="hero-score">
           <div class="score-circle">
+            <svg class="score-ring" viewBox="0 0 72 72" aria-hidden="true">
+              <circle class="ring-bg" cx="36" cy="36" r="32"></circle>
+              <circle class="ring-val" id="d-ring" cx="36" cy="36" r="32"></circle>
+            </svg>
             <span class="score-num" id="d-score"></span>
             <span class="score-sub" data-i18n="Score">Score</span>
           </div>
@@ -811,6 +1008,12 @@ const I18N={
   }
 };
 
+// Strings added by the interactive-UI layer, merged into the main maps.
+Object.assign(I18N.zh,{"Search companies…":"搜索公司…"});
+Object.assign(I18N.hi,{"Search companies…":"कंपनियाँ खोजें…"});
+Object.assign(I18N.es,{"Search companies…":"Buscar empresas…"});
+Object.assign(I18N.fr,{"Search companies…":"Rechercher des sociétés…"});
+
 function tr(key){
   if(currentLang==='en') return key;
   const dict=I18N[currentLang];
@@ -820,6 +1023,9 @@ function tr(key){
 function applyStaticTranslations(){
   document.querySelectorAll('[data-i18n]').forEach(el=>{
     el.textContent=tr(el.getAttribute('data-i18n'));
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
+    el.placeholder=tr(el.getAttribute('data-i18n-placeholder'));
   });
   document.getElementById('dark-lbl').textContent=isDark()?tr('Dark'):tr('Light');
   const sel=document.getElementById('lang-sel');
@@ -1027,9 +1233,58 @@ const COS=[
 ];
 
 const flagOrder={risk:0,follow_on:1,on_track:2};
-let cFilter='all',cSector='all',cSort='risk-top',cCo=null,cTime='3m';
+let cFilter='all',cSector='all',cSort='risk-top',cSearch='',cCo=null,cTime='3m';
 let trendInst=null;
 const dCharts={};
+
+// ── MOTION UTILITIES ──
+const prefersReduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if(window.Chart){
+  Chart.defaults.animation={duration:prefersReduced?0:800,easing:'easeOutQuart'};
+}
+
+// Eased count-up for numeric stats. Falls back to an instant set when the
+// OS asks for reduced motion or the value isn't a finite number.
+function countUp(el,target,dur){
+  if(!el) return;
+  const t=Number(target);
+  if(prefersReduced||!isFinite(t)){ el.textContent=target; return; }
+  const from=parseFloat(el.textContent)||0;
+  if(from===t){ el.textContent=t; return; }
+  dur=dur||650;
+  const start=performance.now();
+  (function step(now){
+    const p=Math.min((now-start)/dur,1);
+    const e=1-Math.pow(1-p,3);
+    el.textContent=Math.round(from+(t-from)*e);
+    if(p<1) requestAnimationFrame(step);
+  })(start);
+}
+
+// Pointer-tracking glow on company cards (CSS reads --mx/--my).
+document.addEventListener('pointermove',e=>{
+  const card=e.target.closest&&e.target.closest('.co-card');
+  if(!card) return;
+  const r=card.getBoundingClientRect();
+  card.style.setProperty('--mx',(e.clientX-r.left)+'px');
+  card.style.setProperty('--my',(e.clientY-r.top)+'px');
+});
+
+// Material-style ripple on all tactile controls.
+document.addEventListener('pointerdown',e=>{
+  if(prefersReduced) return;
+  const btn=e.target.closest&&e.target.closest('.fbtn,.stab,.ttb,.back-btn,.settings-btn,.src-arrow');
+  if(!btn) return;
+  const r=btn.getBoundingClientRect();
+  const d=Math.max(r.width,r.height)*2;
+  const s=document.createElement('span');
+  s.className='ripple';
+  s.style.width=s.style.height=d+'px';
+  s.style.left=(e.clientX-r.left-d/2)+'px';
+  s.style.top=(e.clientY-r.top-d/2)+'px';
+  btn.appendChild(s);
+  setTimeout(()=>s.remove(),600);
+});
 
 // ── DARK MODE ──
 
@@ -1093,10 +1348,10 @@ function updateSidebarCounts(){
   const rc=COS.filter(c=>c.flag==='risk').length;
   const fc=COS.filter(c=>c.flag==='follow_on').length;
   const oc=COS.filter(c=>c.flag==='on_track').length;
-  document.getElementById('sb-total').textContent=COS.length;
-  document.getElementById('sb-risk').textContent=rc;
-  document.getElementById('sb-fo').textContent=fc;
-  document.getElementById('sb-ot').textContent=oc;
+  countUp(document.getElementById('sb-total'),COS.length);
+  countUp(document.getElementById('sb-risk'),rc);
+  countUp(document.getElementById('sb-fo'),fc);
+  countUp(document.getElementById('sb-ot'),oc);
   document.getElementById('fc-all').textContent=COS.length;
   document.getElementById('fc-risk').textContent=rc;
   document.getElementById('fc-fo').textContent=fc;
@@ -1117,12 +1372,14 @@ function setSector(s,btn){
   renderList();
 }
 function setSort(v){cSort=v;renderList();}
+function setSearch(v){cSearch=(v||'').trim().toLowerCase();renderList();}
 
 function getFiltered(){
   return COS.filter(c=>{
     const fOk=cFilter==='all'||c.flag===cFilter;
     const sOk=cSector==='all'||c.sector===cSector;
-    return fOk&&sOk;
+    const qOk=!cSearch||c.name.toLowerCase().includes(cSearch)||c.sectorLbl.toLowerCase().includes(cSearch);
+    return fOk&&sOk&&qOk;
   });
 }
 function getSorted(list){
@@ -1156,6 +1413,12 @@ function renderList(){
   } else {
     list.forEach(c=>el.appendChild(makeCard(c)));
   }
+  // Entrance choreography: stagger each card, then grow its pulse bar.
+  const cards=el.querySelectorAll('.co-card');
+  cards.forEach((c,i)=>{ c.style.animationDelay=Math.min(i*45,360)+'ms'; });
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    el.querySelectorAll('.pulse-fill').forEach(p=>{ p.style.height=p.dataset.h; });
+  }));
 }
 
 function makeCard(co){
@@ -1164,7 +1427,8 @@ function makeCard(co){
   d.onclick=()=>showDetail(co.id);
   const fillPct=co.score+'%';
   d.innerHTML=`
-    <div class="pulse-bar"><div class="pulse-fill ${co.perfNum>=0?'perf-pos':'perf-neg'}" style="height:${fillPct}"></div></div>
+    <span class="sheen"></span>
+    <div class="pulse-bar"><div class="pulse-fill ${co.perfNum>=0?'perf-pos':'perf-neg'}" style="height:0" data-h="${fillPct}"></div></div>
     <div class="card-body">
       <div class="card-main">
         <div class="card-top-row">
@@ -1270,25 +1534,46 @@ function kpiBarHTML(k){
       </div>
     </div>
     <div class="kpi-track">
-      <div class="kpi-fill ${colorClass}" style="width:${fillPct}%"></div>
+      <div class="kpi-fill ${colorClass}" style="width:0%" data-w="${fillPct}"></div>
       <div class="kpi-tgt-line" style="left:${tgtPct}%"><span class="kpi-tgt-lbl">${tr('Target')}</span></div>
     </div>
   </div>`;
 }
 
 // ── DETAIL ──
+// SVG progress ring around the hero score, colored by flag and animated
+// from empty to the score's arc via a stroke-dashoffset transition.
+function setScoreRing(co){
+  const ring=document.getElementById('d-ring');
+  if(!ring) return;
+  const C=2*Math.PI*32;
+  const pct=Math.max(0,Math.min(Number(co.score)||0,100))/100;
+  ring.style.strokeDasharray=C;
+  ring.style.stroke=co.flag==='risk'?'var(--risk)':co.flag==='follow_on'?'var(--fo)':'var(--gold)';
+  ring.style.transition='none';
+  ring.style.strokeDashoffset=C;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    ring.style.transition='';
+    ring.style.strokeDashoffset=C*(1-pct);
+  }));
+}
+
 function showDetail(id){
   const co=COS.find(c=>c.id===id); if(!co) return;
   cCo=id;
   document.getElementById('bc-name').textContent=co.name;
   document.getElementById('d-name').textContent=co.name;
-  document.getElementById('d-score').textContent=co.score;
+  countUp(document.getElementById('d-score'),co.score,900);
+  setScoreRing(co);
   document.getElementById('d-sector').textContent=tr(co.sectorLbl);
   document.getElementById('d-meta').textContent=`${tr('Invested')} ${co.invested} · ${tr('Runway')}: ${co.runway} · ${co.kpis.length} ${tr('tracked KPIs')}`;
   const fp=document.getElementById('d-flag');
   fp.textContent=tr(co.flagLbl); fp.className=`flag-chip ${co.flag}`;
   document.getElementById('d-why').innerHTML=co.why;
   document.getElementById('d-kpis').innerHTML=co.kpis.map(kpiBarHTML).join('');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    document.querySelectorAll('#d-kpis .kpi-fill').forEach(f=>{ f.style.width=f.dataset.w+'%'; });
+  }));
   const tbody=document.getElementById('d-thesis'); tbody.innerHTML='';
   co.thesis.forEach(t=>{
     const tr=document.createElement('tr');
@@ -1503,6 +1788,7 @@ async function applyLiveData(){
       co.news=l.news||[];
       co.alerts=l.alerts||[];
     });
+    document.getElementById('live-dot').classList.add('on');
   }catch(e){
     console.warn('Live data unavailable, using mock data:',e);
   }
@@ -1553,7 +1839,9 @@ function showNews(){
 
 function loadNews(){
   const tbody=document.getElementById('news-tbody');
-  tbody.innerHTML=`<tr><td colspan="4" class="news-empty">${tr('Loading…')}</td></tr>`;
+  tbody.innerHTML=Array.from({length:4},()=>`
+    <tr><td><div class="skel w80"></div></td><td><div class="skel"></div></td>
+    <td><div class="skel w60"></div></td><td><div class="skel w40"></div></td></tr>`).join('');
   const url='/api/news'+(newsCompanyFilter!=='all'?`?company=${encodeURIComponent(newsCompanyFilter)}`:'');
   fetch(url).then(r=>r.json()).then(data=>{
     newsData=data;
@@ -1570,10 +1858,11 @@ function renderNewsSummary(data){
   const competitorCount=data.items.filter(i=>i.is_competitor_mention).length;
   const companyCount=Object.keys(data.summary).length;
   document.getElementById('news-summary-row').innerHTML=`
-    <div class="hstat"><div class="hstat-val g">${data.total_today}</div><div class="hstat-lbl">${tr('Items Today')}</div></div>
-    <div class="hstat"><div class="hstat-val b">${shown}</div><div class="hstat-lbl">${tr('Shown')}</div></div>
-    <div class="hstat"><div class="hstat-val gr">${competitorCount}</div><div class="hstat-lbl">${tr('Competitor Mentions')}</div></div>
-    <div class="hstat"><div class="hstat-val">${companyCount}</div><div class="hstat-lbl">${tr('Companies w/ Matches')}</div></div>`;
+    <div class="hstat"><div class="hstat-val g" data-n="${data.total_today}">0</div><div class="hstat-lbl">${tr('Items Today')}</div></div>
+    <div class="hstat"><div class="hstat-val b" data-n="${shown}">0</div><div class="hstat-lbl">${tr('Shown')}</div></div>
+    <div class="hstat"><div class="hstat-val gr" data-n="${competitorCount}">0</div><div class="hstat-lbl">${tr('Competitor Mentions')}</div></div>
+    <div class="hstat"><div class="hstat-val" data-n="${companyCount}">0</div><div class="hstat-lbl">${tr('Companies w/ Matches')}</div></div>`;
+  document.querySelectorAll('#news-summary-row .hstat-val').forEach(el=>countUp(el,Number(el.dataset.n)||0));
 }
 
 function renderNewsFilters(data){
@@ -1636,6 +1925,18 @@ function toggleSourceInfo(idx){
 }
 
 // ── INIT ──
+// Thin gold progress bar under the topbar tracking main-panel scroll.
+(function(){
+  const panel=document.querySelector('.main-panel');
+  const bar=document.getElementById('scroll-progress');
+  if(panel&&bar){
+    panel.addEventListener('scroll',()=>{
+      const max=panel.scrollHeight-panel.clientHeight;
+      bar.style.transform=`scaleX(${max>0?panel.scrollTop/max:0})`;
+    },{passive:true});
+  }
+})();
+
 updateLogoForTheme();
 applyStaticTranslations();
 applyLiveData().finally(()=>{
